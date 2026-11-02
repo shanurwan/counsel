@@ -14,7 +14,7 @@ begin
     create role counsel_runtime login noinherit;
   end if;
 end $$;
-alter role counsel_runtime noinherit nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role counsel_runtime noinherit nocreatedb nocreaterole nobypassrls;
 
 -- ask_handbook (T0) owner: people-ops
 -- Answers questions from the company handbook with citations, and says so when the handbook does not cover the question.
@@ -24,7 +24,7 @@ begin
     create role agent_ask_handbook nologin;
   end if;
 end $$;
-alter role agent_ask_handbook nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_ask_handbook nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_ask_handbook;
 grant agent_ask_handbook to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_ask_handbook;
@@ -41,7 +41,7 @@ begin
     create role agent_drift_watcher nologin;
   end if;
 end $$;
-alter role agent_drift_watcher nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_drift_watcher nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_drift_watcher;
 grant agent_drift_watcher to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_drift_watcher;
@@ -58,7 +58,7 @@ begin
     create role agent_exec_weekly nologin;
   end if;
 end $$;
-alter role agent_exec_weekly nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_exec_weekly nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_exec_weekly;
 grant agent_exec_weekly to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_exec_weekly;
@@ -76,7 +76,7 @@ begin
     create role agent_issue_triage nologin;
   end if;
 end $$;
-alter role agent_issue_triage nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_issue_triage nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_issue_triage;
 grant agent_issue_triage to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_issue_triage;
@@ -93,7 +93,7 @@ begin
     create role agent_nudge nologin;
   end if;
 end $$;
-alter role agent_nudge nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_nudge nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_nudge;
 grant agent_nudge to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_nudge;
@@ -110,7 +110,7 @@ begin
     create role agent_standup_carrier nologin;
   end if;
 end $$;
-alter role agent_standup_carrier nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_standup_carrier nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_standup_carrier;
 grant agent_standup_carrier to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_standup_carrier;
@@ -127,7 +127,7 @@ begin
     create role agent_team_digest nologin;
   end if;
 end $$;
-alter role agent_team_digest nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role agent_team_digest nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_team_digest;
 grant agent_team_digest to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel from agent_team_digest;

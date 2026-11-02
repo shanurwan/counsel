@@ -58,7 +58,7 @@ begin
     create role {RUNTIME_ROLE} login noinherit;
   end if;
 end $$;
-alter role {RUNTIME_ROLE} noinherit nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role {RUNTIME_ROLE} noinherit nocreatedb nocreaterole nobypassrls;
 """
 
 AGENT_BLOCK = """
@@ -70,7 +70,7 @@ begin
     create role {role} nologin;
   end if;
 end $$;
-alter role {role} nologin nosuperuser nocreatedb nocreaterole nobypassrls;
+alter role {role} nologin nocreatedb nocreaterole nobypassrls;
 grant {group} to {role};
 grant {role} to {runtime};
 revoke all on all tables in schema work, kb, counsel from {role};

@@ -74,8 +74,10 @@ def migrate(conn, out=print) -> None:
     conn.execute("create schema if not exists counsel_meta")
     conn.execute("""create table if not exists counsel_meta.migrations (
         name text primary key, applied_at timestamptz not null default now())""")
-    conn.commit()
     done = {r[0] for r in conn.execute("select name from counsel_meta.migrations")}
+    # Close the implicit transaction so each block below is a real commit,
+    # not a savepoint that a later failure would silently roll back.
+    conn.commit()
     for path in sorted((ROOT / "db" / "migrations").glob("*.sql")):
         if path.name in done:
             continue
@@ -83,8 +85,8 @@ def migrate(conn, out=print) -> None:
             conn.execute(path.read_text(encoding="utf-8"))
             conn.execute("insert into counsel_meta.migrations (name) values (%s)", (path.name,))
         out(f"applied {path.name}")
-    conn.execute(COMPILED.read_text(encoding="utf-8"))
-    conn.commit()
+    with conn.transaction():
+        conn.execute(COMPILED.read_text(encoding="utf-8"))
     out(f"applied {COMPILED.relative_to(ROOT).as_posix()}")
 
 

@@ -96,7 +96,8 @@ CHECKS: dict[str, str] = {
         cross join pg_proc p
         join pg_namespace n on n.oid = p.pronamespace
         where p.prosecdef
-          and p.prorettype <> 'trigger'::regtype
+          -- trigger and event trigger functions cannot be called directly
+          and p.prorettype not in ('trigger'::regtype, 'event_trigger'::regtype)
           and n.nspname not in ('pg_catalog', 'information_schema')
           and has_function_privilege(s.rolname, p.oid, 'EXECUTE')
     """,

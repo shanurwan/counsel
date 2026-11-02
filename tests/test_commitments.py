@@ -137,6 +137,19 @@ def test_audit_catches_security_definer_backdoor(db, agents):
     assert ("can run SECURITY DEFINER function", "agent_nudge") in flagged
 
 
+def test_uncallable_trigger_functions_are_not_flagged_and_cannot_be_called(db, agents):
+    # Supabase ships rls_auto_enable(), a SECURITY DEFINER event trigger
+    # function executable by PUBLIC. Postgres refuses direct calls to it.
+    db.execute("""
+        create function counsel.on_ddl() returns event_trigger
+        language plpgsql security definer set search_path = ''
+        as $$ begin update work.tasks set owner_id = null; end $$
+    """)
+    db.execute("grant execute on function counsel.on_ddl() to agent_nudge")
+    assert not [v for v in audit.run(db, agents) if "on_ddl" in v.detail]
+    assert denied(db, "agent_nudge", "select counsel.on_ddl()") == "0A000"
+
+
 def test_audit_catches_person_holding_an_agent_role(db, agents):
     db.execute("create role alice_human")
     db.execute("grant agent_nudge to alice_human")
