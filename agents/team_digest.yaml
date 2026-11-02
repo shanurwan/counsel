@@ -1,0 +1,10 @@
+name: team_digest
+description: >
+  Daily digest per team in the team's own time zone: what moved, what is
+  blocked, what is waiting on whom. Drafted for a person to publish.
+owner: platform
+tier: T1
+capabilities: [read_tasks, read_updates, write_drafts]
+triggers:
+  schedule: "0 * * * *"
+suite: evals/team_digest

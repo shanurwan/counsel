@@ -1,0 +1,10 @@
+name: ask_handbook
+description: >
+  Answers questions from the company handbook with citations, and says so when
+  the handbook does not cover the question.
+owner: people-ops
+tier: T0
+capabilities: [read_handbook, write_answers]
+triggers:
+  events: [question_asked]
+suite: evals/ask_handbook

@@ -1,0 +1,10 @@
+name: drift_watcher
+description: >
+  Watches the platform itself: failing suites, unused agents, budget overruns
+  and registry drift. Drafts a fix issue for a person to file.
+owner: platform
+tier: T1
+capabilities: [read_tasks, write_drafts]
+triggers:
+  schedule: "0 6 * * *"
+suite: evals/drift_watcher

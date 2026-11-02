@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  commitments:
+    name: commitments are impossible
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s --health-timeout 5s --health-retries 20
+    env:
+      COUNSEL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/counsel
+      COUNSEL_TEST_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -e ".[dev]"
+
+      - name: Registry is valid
+        run: counsel validate
+
+      - name: Compiled grants match the registry
+        run: counsel compile --check
+
+      - name: Apply to a fresh database
+        run: |
+          psql "$COUNSEL_TEST_ADMIN_URL" -c "create database counsel"
+          counsel migrate
+
+      - name: Privilege audit (fails on any agent that can write a commitment)
+        run: |
+          counsel audit --matrix matrix.md
+          { echo "## Privilege matrix (live database)"; echo; cat matrix.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Denial tests
+        run: pytest -q

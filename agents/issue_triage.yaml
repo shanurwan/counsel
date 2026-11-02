@@ -1,0 +1,10 @@
+name: issue_triage
+description: >
+  Reads new issues and drafts a triage note: likely team, duplicates, missing
+  information. It suggests an owner in the draft; a person assigns.
+owner: platform
+tier: T1
+capabilities: [read_tasks, write_drafts]
+triggers:
+  events: [issue_opened]
+suite: evals/issue_triage

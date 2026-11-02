@@ -1,0 +1,11 @@
+name: nudge
+description: >
+  Sends one well-timed message when a task has been silent too long, inside
+  the recipient's working hours and weekly interruption budget. It gives
+  context before it asks for anything.
+owner: ops-lead
+tier: T3
+capabilities: [read_tasks, send_messages]
+triggers:
+  schedule: "30 * * * *"
+suite: evals/nudge

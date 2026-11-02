@@ -1,0 +1,11 @@
+name: standup_carrier
+description: >
+  Carries a person's own standup text into the task it belongs to, only after
+  that person approves the exact text. It cannot change who owns the task,
+  when it is due, or its status.
+owner: platform
+tier: T2
+capabilities: [read_tasks, carry_updates]
+triggers:
+  events: [standup_message_received]
+suite: evals/standup_carrier

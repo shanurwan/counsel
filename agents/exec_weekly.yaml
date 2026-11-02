@@ -1,0 +1,10 @@
+name: exec_weekly
+description: >
+  Writes the Monday leadership brief from task movement, blockers and slipped
+  dates across all teams. A person reads and publishes it.
+owner: ops-lead
+tier: T1
+capabilities: [read_tasks, read_updates, write_drafts]
+triggers:
+  schedule: "0 7 * * 1"
+suite: evals/exec_weekly
