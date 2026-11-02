@@ -16,6 +16,10 @@ begin
 end $$;
 alter role counsel_runtime noinherit nocreatedb nocreaterole nobypassrls;
 
+-- Bookkeeping (jobs, runs, journal) happens as the orchestrator, created in
+-- 0003_runtime.sql and audited like an agent.
+grant counsel_orchestrator to counsel_runtime;
+
 -- ask_handbook (T0) owner: people-ops
 -- Answers questions from the company handbook with citations, and says so when the handbook does not cover the question.
 do $$
@@ -31,7 +35,7 @@ revoke all on all tables in schema work, kb, counsel from agent_ask_handbook;
 revoke all on schema work, kb, counsel from agent_ask_handbook;
 grant usage on schema kb to agent_ask_handbook;
 grant select on kb.documents to agent_ask_handbook;
-grant insert (run_id, question, body) on counsel.answers to agent_ask_handbook;
+grant insert (id, run_id, question, body) on counsel.answers to agent_ask_handbook;
 
 -- drift_watcher (T1) owner: platform
 -- Watches the platform itself: failing suites, unused agents, budget overruns and registry drift. Drafts a fix issue for a person to file.
@@ -48,7 +52,7 @@ revoke all on all tables in schema work, kb, counsel from agent_drift_watcher;
 revoke all on schema work, kb, counsel from agent_drift_watcher;
 grant usage on schema work to agent_drift_watcher;
 grant select on work.teams, work.people, work.tasks to agent_drift_watcher;
-grant insert (run_id, kind, body) on counsel.drafts to agent_drift_watcher;
+grant insert (id, run_id, kind, body) on counsel.drafts to agent_drift_watcher;
 
 -- exec_weekly (T1) owner: ops-lead
 -- Writes the Monday leadership brief from task movement, blockers and slipped dates across all teams. A person reads and publishes it.
@@ -66,7 +70,7 @@ revoke all on schema work, kb, counsel from agent_exec_weekly;
 grant usage on schema work to agent_exec_weekly;
 grant select on work.teams, work.people, work.tasks to agent_exec_weekly;
 grant select on work.task_updates to agent_exec_weekly;
-grant insert (run_id, kind, body) on counsel.drafts to agent_exec_weekly;
+grant insert (id, run_id, kind, body) on counsel.drafts to agent_exec_weekly;
 
 -- issue_triage (T1) owner: platform
 -- Reads new issues and drafts a triage note: likely team, duplicates, missing information. It suggests an owner in the draft; a person assigns.
@@ -83,7 +87,7 @@ revoke all on all tables in schema work, kb, counsel from agent_issue_triage;
 revoke all on schema work, kb, counsel from agent_issue_triage;
 grant usage on schema work to agent_issue_triage;
 grant select on work.teams, work.people, work.tasks to agent_issue_triage;
-grant insert (run_id, kind, body) on counsel.drafts to agent_issue_triage;
+grant insert (id, run_id, kind, body) on counsel.drafts to agent_issue_triage;
 
 -- nudge (T3) owner: ops-lead
 -- Sends one well-timed message when a task has been silent too long, inside the recipient's working hours and weekly interruption budget. It gives context before it asks for anything.
@@ -135,4 +139,4 @@ revoke all on schema work, kb, counsel from agent_team_digest;
 grant usage on schema work to agent_team_digest;
 grant select on work.teams, work.people, work.tasks to agent_team_digest;
 grant select on work.task_updates to agent_team_digest;
-grant insert (run_id, kind, body) on counsel.drafts to agent_team_digest;
+grant insert (id, run_id, kind, body) on counsel.drafts to agent_team_digest;

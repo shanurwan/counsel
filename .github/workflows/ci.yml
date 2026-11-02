@@ -50,3 +50,40 @@ jobs:
 
       - name: Denial tests
         run: pytest -q
+
+  deploy:
+    name: deploy to Cloud Run
+    needs: commitments
+    # Pushes to main only, and only once the infrastructure exists
+    # (gh variable set DEPLOY --body on).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY == 'on'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # keyless auth to GCP through Workload Identity Federation
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      REGION: us-central1
+      IMAGE: us-central1-docker.pkg.dev/counsel-513516/counsel/counsel
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: projects/1087057103019/locations/global/workloadIdentityPools/github/providers/github
+          service_account: counsel-deployer@counsel-513516.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - name: Build and push
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "${IMAGE}:${GITHUB_SHA}" .
+          docker push "${IMAGE}:${GITHUB_SHA}"
+      - name: Deploy the image by digest
+        run: |
+          digest=$(gcloud artifacts docker images describe "${IMAGE}:${GITHUB_SHA}" --format='value(image_summary.digest)')
+          gcloud run services update counsel --region "$REGION" --image "${IMAGE}@${digest}" --quiet
+          gcloud run services describe counsel --region "$REGION" \
+            --format='value(status.latestReadyRevisionName,status.traffic[0].percent)'

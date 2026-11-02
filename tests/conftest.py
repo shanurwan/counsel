@@ -40,6 +40,15 @@ def database_url():
               ('00000000-0000-0000-0000-0000000000b1', 'growth', 'Pricing page copy',
                null, null, 'open');
         """)
+        conn.execute("""
+            update work.teams set tz = 'Asia/Tokyo' where id = 'core';
+            update work.teams set tz = 'America/Sao_Paulo' where id = 'growth';
+            insert into kb.documents (path, body) values
+              ('leave.md', 'Annual leave: everyone gets 18 days of paid annual leave per year. '
+                           'Request leave in the HR portal at least two weeks ahead.'),
+              ('expenses.md', 'Expenses: submit receipts within 30 days. Meals while travelling '
+                              'are covered up to 40 USD per day.');
+        """)
         conn.execute("alter role counsel_runtime password 'counsel-test-only'")
         conn.commit()
     return url

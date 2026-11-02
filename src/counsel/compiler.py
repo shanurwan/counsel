@@ -12,6 +12,7 @@ from .registry import Agent
 
 RUNTIME_ROLE = "counsel_runtime"
 GROUP_ROLE = "counsel_agents"
+ORCHESTRATOR_ROLE = "counsel_orchestrator"
 
 CAPABILITY_SQL: dict[str, list[str]] = {
     "read_handbook": [
@@ -19,7 +20,7 @@ CAPABILITY_SQL: dict[str, list[str]] = {
         "grant select on kb.documents to {role};",
     ],
     "write_answers": [
-        "grant insert (run_id, question, body) on counsel.answers to {role};",
+        "grant insert (id, run_id, question, body) on counsel.answers to {role};",
     ],
     "read_tasks": [
         "grant usage on schema work to {role};",
@@ -30,7 +31,7 @@ CAPABILITY_SQL: dict[str, list[str]] = {
         "grant select on work.task_updates to {role};",
     ],
     "write_drafts": [
-        "grant insert (run_id, kind, body) on counsel.drafts to {role};",
+        "grant insert (id, run_id, kind, body) on counsel.drafts to {role};",
     ],
     "carry_updates": [
         "grant usage on schema work to {role};",
@@ -63,6 +64,10 @@ begin
   end if;
 end $$;
 alter role {runtime} noinherit nocreatedb nocreaterole nobypassrls;
+
+-- Bookkeeping (jobs, runs, journal) happens as the orchestrator, created in
+-- 0003_runtime.sql and audited like an agent.
+grant {orchestrator} to {runtime};
 """
 
 AGENT_BLOCK = """
@@ -94,7 +99,7 @@ def grants_for(agent: Agent) -> list[str]:
 
 
 def compile_sql(agents: list[Agent]) -> str:
-    out = [HEADER.format(group=GROUP_ROLE, runtime=RUNTIME_ROLE)]
+    out = [HEADER.format(group=GROUP_ROLE, runtime=RUNTIME_ROLE, orchestrator=ORCHESTRATOR_ROLE)]
     for agent in sorted(agents, key=lambda a: a.name):
         out.append(AGENT_BLOCK.format(
             name=agent.name,

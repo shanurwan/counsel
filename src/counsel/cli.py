@@ -10,9 +10,29 @@ from pathlib import Path
 from . import audit, registry
 from .compiler import compile_sql
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(os.environ.get("COUNSEL_ROOT") or Path(__file__).resolve().parents[2])
 AGENTS_DIR = ROOT / "agents"
 COMPILED = ROOT / "db" / "generated" / "agents.sql"
+RECORDINGS = ROOT / "tests" / "recordings"
+
+
+def build_model():
+    """COUNSEL_MODEL=live (default) | replay | record."""
+    from .model import NvidiaModel, RecordingModel, ReplayModel
+
+    mode = os.environ.get("COUNSEL_MODEL", "live")
+    if mode == "replay":
+        return ReplayModel(RECORDINGS)
+    live = NvidiaModel(api_key=os.environ["NVIDIA_API_KEY"])
+    return RecordingModel(live, RECORDINGS) if mode == "record" else live
+
+
+def build_worker(conn):
+    from .behaviors import IMPLEMENTATIONS
+    from .runtime import Worker
+
+    agents = {a.name: a for a in _load()}
+    return Worker(conn, agents, IMPLEMENTATIONS, build_model())
 
 
 def _load() -> list[registry.Agent]:
@@ -102,6 +122,72 @@ def cmd_migrate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _dsn(args) -> str:
+    dsn = getattr(args, "dsn", None) or os.environ.get("COUNSEL_DATABASE_URL")
+    if not dsn:
+        print("set COUNSEL_DATABASE_URL or pass --dsn", file=sys.stderr)
+        sys.exit(2)
+    return dsn
+
+
+def cmd_tick(args: argparse.Namespace) -> int:
+    """One scheduler tick, as Cloud Run runs it. Connect as counsel_runtime."""
+    import json
+
+    import psycopg
+
+    with psycopg.connect(_dsn(args), autocommit=True) as conn:
+        print(json.dumps(build_worker(conn).tick(), indent=2, default=str))
+    return 0
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    import psycopg
+
+    with psycopg.connect(_dsn(args)) as conn:
+        qid = conn.execute("insert into counsel.questions (body) values (%s) returning id",
+                           (args.question,)).fetchone()[0]
+    print(f"queued question {qid}; the next tick answers it")
+    return 0
+
+
+def cmd_replay(args: argparse.Namespace) -> int:
+    """Reconstruct a run from the journal: every step, model call and outcome."""
+    import psycopg
+
+    with psycopg.connect(_dsn(args)) as conn:
+        run = conn.execute(
+            """select r.agent, r.status, r.attempt, r.started_at, r.finished_at, r.error, j.idempotency_key
+               from counsel.runs r join counsel.jobs j on j.id = r.job_id where r.id = %s""",
+            (args.run_id,)).fetchone()
+        if not run:
+            print("no such run", file=sys.stderr)
+            return 1
+        agent, status, attempt, started, finished, error, key = run
+        print(f"run {args.run_id}\n  agent {agent}  status {status}  attempt {attempt}  job {key}")
+        print(f"  {started} -> {finished}" + (f"\n  error: {error}" if error else ""))
+        calls = {seq: (model, latency, req, resp) for seq, model, latency, req, resp in conn.execute(
+            """select step_seq, model, latency_ms, request, response from counsel.model_calls
+               where run_id = %s and error is null""", (args.run_id,))}
+        for seq, name, output, at in conn.execute(
+                "select seq, name, output, finished_at from counsel.steps where run_id = %s order by seq",
+                (args.run_id,)):
+            print(f"\n[{seq}] {name}  ({at})")
+            if seq in calls:
+                model, latency, req, resp = calls[seq]
+                print(f"    model {model}, {latency} ms")
+                for m in req["messages"]:
+                    print(f"    > {m['role']}: {m['content'][:300]}")
+                print(f"    < {resp['text'][:600]}")
+            else:
+                print(f"    {str(output)[:600]}")
+        for at, action, decision, detail in conn.execute(
+                """select at, action, decision, detail from counsel.audit_log
+                   where run_id = %s order by id""", (args.run_id,)):
+            print(f"\naudit {at} {action} {decision} {detail}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="counsel")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -120,6 +206,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dsn")
     p.add_argument("--matrix", help="also write the privilege matrix (markdown) to this file")
     p.set_defaults(fn=cmd_audit)
+
+    p = sub.add_parser("tick", help="run one scheduler tick (as counsel_runtime)")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_tick)
+
+    p = sub.add_parser("ask", help="ask the handbook agent a question (as an admin)")
+    p.add_argument("question")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_ask)
+
+    p = sub.add_parser("replay", help="reconstruct a run from its journal")
+    p.add_argument("run_id")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_replay)
 
     args = parser.parse_args(argv)
     return args.fn(args)

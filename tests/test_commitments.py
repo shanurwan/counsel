@@ -18,7 +18,8 @@ APPEND_ONLY = "CN003"
 
 AGENT_ROLES = [
     "agent_ask_handbook", "agent_drift_watcher", "agent_exec_weekly", "agent_issue_triage",
-    "agent_nudge", "agent_standup_carrier", "agent_team_digest", "counsel_runtime",
+    "agent_nudge", "agent_standup_carrier", "agent_team_digest",
+    "counsel_orchestrator", "counsel_runtime",
 ]
 COMMITMENT_WRITES = {
     "owner_id": ("update work.tasks set owner_id = %s where id = %s", (BRUNO, TASK_A)),
@@ -49,6 +50,7 @@ def test_matrix_has_no_commitment_cell(db, agents):
     table = audit.matrix(db, agents)
     assert "YES" not in table
     assert table.count("| `agent_") == len(agents)
+    assert "| `counsel_orchestrator` | platform | no | no | no | no | no |" in table
 
 
 # --- wall 2: the credential cannot do it --------------------------------------

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import psycopg
 from psycopg import sql
 
-from .compiler import GROUP_ROLE, RUNTIME_ROLE
+from .compiler import GROUP_ROLE, ORCHESTRATOR_ROLE, RUNTIME_ROLE
 from .registry import Agent
 
 COMMITMENT_COLUMNS = ("owner_id", "due_date", "status")
@@ -35,7 +35,7 @@ SUBJECTS = sql.SQL("""
   ),
   subjects as (select rolname from pg_roles where oid in (select oid from s))
 """)
-PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE}
+PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE}
 
 CHECKS: dict[str, str] = {
     "commitment column writable": """
@@ -82,7 +82,7 @@ CHECKS: dict[str, str] = {
     "non-agent role can act as an agent": """
         select rolname, 'holds an agent membership'
         from subjects
-        where rolname not in (%(group)s, %(runtime)s)
+        where rolname not in (%(group)s, %(runtime)s, %(orchestrator)s)
           and left(rolname, 6) <> 'agent_'
     """,
     "owns objects": """
@@ -110,7 +110,7 @@ CHECKS: dict[str, str] = {
 
 LIVE_AGENTS = """
     select rolname from subjects
-    where rolname not in (%(group)s, %(runtime)s)
+    where rolname not in (%(group)s, %(runtime)s, %(orchestrator)s)
 """
 
 
@@ -149,8 +149,10 @@ def matrix(conn: psycopg.Connection, agents: list[Agent]) -> str:
     """The table a reviewer reads first, built from has_*_privilege on the live database."""
     head = ["Agent role", "Tier", "read tasks", "add update note", *COMMITMENT_COLUMNS]
     rows = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
+    roles = [(a.role, a.tier) for a in sorted(agents, key=lambda a: a.name)]
+    roles += [(ORCHESTRATOR_ROLE, "platform"), (RUNTIME_ROLE, "platform")]
     with conn.cursor() as cur:
-        for a in sorted(agents, key=lambda a: a.name):
+        for role, tier in roles:
             cur.execute(
                 """
                 select has_table_privilege(%(r)s, 'work.tasks', 'SELECT'),
@@ -162,10 +164,10 @@ def matrix(conn: psycopg.Connection, agents: list[Agent]) -> str:
                        has_column_privilege(%(r)s, 'work.tasks', 'status', 'UPDATE')
                          or has_column_privilege(%(r)s, 'work.tasks', 'status', 'INSERT')
                 """,
-                {"r": a.role},
+                {"r": role},
             )
             read, note, *commit = cur.fetchone()
             cells = ["yes" if read else "no", "with consent" if note else "no"]
             cells += ["**YES**" if c else "no" for c in commit]
-            rows.append(f"| `{a.role}` | {a.tier} | " + " | ".join(cells) + " |")
+            rows.append(f"| `{role}` | {tier} | " + " | ".join(cells) + " |")
     return "\n".join(rows) + "\n"
