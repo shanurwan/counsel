@@ -63,7 +63,7 @@ Needs Python 3.11+ and Postgres 16+.
 
 ```sh
 python -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]" -r infra/billing_guard/requirements.txt
 
 counsel validate                       # registry rules
 counsel compile --check                # generated grants match the registry
