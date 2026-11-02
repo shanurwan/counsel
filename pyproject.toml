@@ -10,7 +10,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = [
+  "pytest>=8",
+  # infra/billing_guard, tested in tests/test_billing_guard.py
+  "functions-framework>=3.8",
+  "google-auth>=2.30",
+]
 
 [project.scripts]
 counsel = "counsel.cli:main"

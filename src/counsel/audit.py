@@ -11,6 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import psycopg
+from psycopg import sql
 
 from .compiler import GROUP_ROLE, RUNTIME_ROLE
 from .registry import Agent
@@ -21,28 +22,32 @@ COMMITMENT_COLUMNS = ("owner_id", "due_date", "status")
 # that reaches them through a membership that passes privileges on (INHERIT or
 # SET). pg_has_role(..., 'MEMBER') is not used because it also counts
 # superusers and Supabase's admin-only creator grants.
-SUBJECTS = f"""
+#
+# Each check below is a constant query that reads from `subjects`. Role names
+# are bound as parameters; nothing is formatted into SQL text.
+SUBJECTS = sql.SQL("""
   with recursive s(oid) as (
-    select oid from pg_roles where rolname in ('{GROUP_ROLE}', '{RUNTIME_ROLE}')
+    select oid from pg_roles where rolname in (%(group)s, %(runtime)s)
     union
     select am.member from pg_auth_members am
     join s on am.roleid = s.oid
     where am.inherit_option or am.set_option
-  )
-  select rolname from pg_roles where oid in (select oid from s)
-"""
+  ),
+  subjects as (select rolname from pg_roles where oid in (select oid from s))
+""")
+PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE}
 
 CHECKS: dict[str, str] = {
-    "commitment column writable": f"""
-        select s.rolname, format('%s %s on work.tasks', p.priv, c.col)
-        from ({SUBJECTS}) s
+    "commitment column writable": """
+        select s.rolname, format('%%s %%s on work.tasks', p.priv, c.col)
+        from subjects s
         cross join (values ('owner_id'), ('due_date'), ('status')) c(col)
         cross join (values ('INSERT'), ('UPDATE')) p(priv)
         where has_column_privilege(s.rolname, 'work.tasks', c.col, p.priv)
     """,
-    "forbidden table privilege": f"""
-        select s.rolname, format('%s on %s', t.priv, t.tbl)
-        from ({SUBJECTS}) s
+    "forbidden table privilege": """
+        select s.rolname, format('%%s on %%s', t.priv, t.tbl)
+        from subjects s
         cross join (values
             ('work.tasks', 'INSERT'), ('work.tasks', 'DELETE'),
             ('work.tasks', 'TRUNCATE'), ('work.tasks', 'TRIGGER'),
@@ -53,46 +58,46 @@ CHECKS: dict[str, str] = {
         ) t(tbl, priv)
         where has_table_privilege(s.rolname, t.tbl, t.priv)
     """,
-    "dangerous role attribute": f"""
+    "dangerous role attribute": """
         select r.rolname, a.attr
         from pg_roles r
         cross join lateral (values
             ('superuser', r.rolsuper), ('createrole', r.rolcreaterole),
             ('createdb', r.rolcreatedb), ('bypassrls', r.rolbypassrls),
             ('replication', r.rolreplication),
-            ('login', r.rolcanlogin and r.rolname <> '{RUNTIME_ROLE}'),
-            ('inherit', r.rolinherit and r.rolname = '{RUNTIME_ROLE}')
+            ('login', r.rolcanlogin and r.rolname <> %(runtime)s),
+            ('inherit', r.rolinherit and r.rolname = %(runtime)s)
         ) a(attr, bad)
-        where r.rolname in ({SUBJECTS}) and a.bad
+        where r.rolname in (select rolname from subjects) and a.bad
     """,
-    "unexpected membership": f"""
-        select m.rolname, format('member of %s', g.rolname)
+    "unexpected membership": """
+        select m.rolname, format('member of %%s', g.rolname)
         from pg_auth_members am
         join pg_roles m on m.oid = am.member
         join pg_roles g on g.oid = am.roleid
-        where m.rolname in ({SUBJECTS})
-          and not (g.rolname = '{GROUP_ROLE}' or pg_has_role(g.oid, '{GROUP_ROLE}', 'MEMBER'))
+        where m.rolname in (select rolname from subjects)
+          and g.rolname not in (select rolname from subjects)
           and (am.inherit_option or am.set_option)
     """,
-    "non-agent role can act as an agent": f"""
+    "non-agent role can act as an agent": """
         select rolname, 'holds an agent membership'
-        from ({SUBJECTS}) s
-        where rolname not in ('{GROUP_ROLE}', '{RUNTIME_ROLE}')
+        from subjects
+        where rolname not in (%(group)s, %(runtime)s)
           and left(rolname, 6) <> 'agent_'
     """,
-    "owns objects": f"""
-        select r.rolname, format('owns %s %s', o.kind, o.name)
+    "owns objects": """
+        select r.rolname, format('owns %%s %%s', o.kind, o.name)
         from pg_roles r
         join (
           select relowner as owner, 'relation' as kind, oid::regclass::text as name from pg_class
           union all select proowner, 'function', oid::regprocedure::text from pg_proc
           union all select nspowner, 'schema', nspname::text from pg_namespace
         ) o on o.owner = r.oid
-        where r.rolname in ({SUBJECTS})
+        where r.rolname in (select rolname from subjects)
     """,
-    "can run SECURITY DEFINER function": f"""
+    "can run SECURITY DEFINER function": """
         select s.rolname, p.oid::regprocedure::text
-        from ({SUBJECTS}) s
+        from subjects s
         cross join pg_proc p
         join pg_namespace n on n.oid = p.pronamespace
         where p.prosecdef
@@ -102,6 +107,15 @@ CHECKS: dict[str, str] = {
           and has_function_privilege(s.rolname, p.oid, 'EXECUTE')
     """,
 }
+
+LIVE_AGENTS = """
+    select rolname from subjects
+    where rolname not in (%(group)s, %(runtime)s)
+"""
+
+
+def _query(body: str) -> sql.Composed:
+    return SUBJECTS + sql.SQL(body)
 
 
 @dataclass(frozen=True)
@@ -117,15 +131,12 @@ class Violation:
 def run(conn: psycopg.Connection, agents: list[Agent] | None = None) -> list[Violation]:
     found: list[Violation] = []
     with conn.cursor() as cur:
-        for name, sql in CHECKS.items():
-            cur.execute(sql)
+        for name, body in CHECKS.items():
+            cur.execute(_query(body), PARAMS)
             found += [Violation(name, role, detail) for role, detail in cur.fetchall()]
 
         if agents is not None:
-            cur.execute(f"""
-                select rolname from ({SUBJECTS}) s
-                where rolname not in ('{GROUP_ROLE}', '{RUNTIME_ROLE}')
-            """)
+            cur.execute(_query(LIVE_AGENTS), PARAMS)
             live = {row[0] for row in cur.fetchall()}
             for role in sorted(live - {a.role for a in agents}):
                 found.append(Violation("unregistered agent role", role, "not in agents/*.yaml"))

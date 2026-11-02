@@ -30,6 +30,7 @@ REQUIRED = ("name", "description", "owner", "tier", "capabilities", "triggers", 
 ALLOWED = set(REQUIRED)
 TRIGGER_KEYS = {"schedule", "events"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
+OWNER_RE = re.compile(r"^[a-z][a-z0-9._-]{1,40}$")
 
 
 class RegistryError(Exception):
@@ -76,6 +77,10 @@ def validate_entry(doc: object, source: str) -> list[str]:
         problems.append(f"{where}: name '{name}' must match {NAME_RE.pattern}")
     if isinstance(name, str) and Path(source).stem.replace("-", "_") != name:
         problems.append(f"{where}: file name must match agent name '{name}'")
+
+    owner = doc.get("owner")
+    if owner is not None and not (isinstance(owner, str) and OWNER_RE.match(owner)):
+        problems.append(f"{where}: owner must match {OWNER_RE.pattern}")
 
     tier = doc.get("tier")
     if tier is not None and tier not in TIERS:

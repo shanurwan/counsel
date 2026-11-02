@@ -1,0 +1,2 @@
+# Copy to terraform.tfvars (not committed).
+billing_account = "XXXXXX-XXXXXX-XXXXXX"

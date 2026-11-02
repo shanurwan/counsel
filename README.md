@@ -92,6 +92,25 @@ Each test acts as a real agent role and expects Postgres to refuse:
 
 And one that must succeed: people can still set their own commitments.
 
+## Security pipeline
+
+Every push runs, alongside the commitment checks:
+
+- **gitleaks** over the full git history (binary pinned by SHA-256)
+- **bandit** static analysis and **pip-audit** for known-vulnerable dependencies
+- **terraform fmt/validate** and **Checkov**, with each skip justified inline
+- **zizmor** on the workflows themselves; every action is pinned to a commit SHA
+  and the Postgres service image to a digest
+
+Dependabot proposes updates weekly with a 7-day cooldown. A gitleaks
+pre-commit hook is in `.pre-commit-config.yaml`.
+
+## Cost
+
+Runs on the Supabase, GCP and NVIDIA free tiers by construction, with a budget
+alert and a billing hard stop behind it. The numbers and the worst case are in
+[docs/free-tier.md](docs/free-tier.md).
+
 ## Status
 
 | Part | Status |
@@ -99,7 +118,8 @@ And one that must succeed: people can still set their own commitments.
 | Schema, agent roles, guards, privilege audit, CI | done |
 | Runtime: pgmq queue, step journal, NVIDIA NIM adapter, replay | next |
 | Evaluation gate: golden suites, safety cases, calibrated judge | planned |
-| Contact budget, value ledger, Terraform for Supabase and GCP | planned |
+| GCP foundation in Terraform: registries, secrets, BigQuery, identities, budget with a tested hard stop | done |
+| Contact budget, value ledger | planned |
 
 All data is synthetic (a made-up company, Harbor Labs). Counsel has no real
 users.

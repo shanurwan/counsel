@@ -38,6 +38,7 @@ def test_good_entry_passes():
     ({"triggers": {"cron": "* * * * *"}}, "unknown trigger 'cron'"),
     ({"tier": "T9"}, "tier 'T9'"),
     ({"name": "Team-Digest"}, "must match"),
+    ({"owner": "platform\ndrop table work.tasks;"}, "owner must match"),
 ])
 def test_bad_entries_are_refused(change, expected):
     found = problems(**change)
