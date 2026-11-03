@@ -114,6 +114,20 @@ jobs:
           workload_identity_provider: projects/1087057103019/locations/global/workloadIdentityPools/github/providers/github
           service_account: counsel-deployer@counsel-513516.iam.gserviceaccount.com
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Migrate, then audit, before the new code goes live
+        # Migrations only add, so the running revision keeps working on the new
+        # schema; the new revision never starts against an old one. If either
+        # step fails, nothing is deployed.
+        run: |
+          pip install -e .
+          COUNSEL_DATABASE_URL="$(gcloud secrets versions access latest --secret=migrate-database-url)"
+          echo "::add-mask::${COUNSEL_DATABASE_URL}"
+          export COUNSEL_DATABASE_URL
+          counsel migrate
+          counsel audit > /dev/null
       - name: Build and push
         run: |
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet

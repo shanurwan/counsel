@@ -74,6 +74,8 @@ resource "google_cloud_run_v2_service" "counsel" {
       template[0].containers[0].image,
       client,
       client_version,
+      # The API reports an empty scaling block Terraform never set.
+      scaling,
     ]
   }
 
@@ -190,4 +192,21 @@ output "workload_identity_provider" {
 
 output "deployer_service_account" {
   value = google_service_account.deployer.email
+}
+
+# The admin connection string for `counsel migrate`, read by the deploy job only.
+# Not in the runtime's secret set: the runtime logs in as counsel_runtime, which
+# holds no privileges; only a deploy from main can reach this.
+resource "google_secret_manager_secret" "migrate" {
+  secret_id = "migrate-database-url"
+  replication {
+    auto {}
+  }
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_iam_member" "deployer_migrate" {
+  secret_id = google_secret_manager_secret.migrate.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = google_service_account.deployer.member
 }
