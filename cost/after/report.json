@@ -1,0 +1,711 @@
+{
+  "since": "2026-10-01T00:00:00+00:00",
+  "until": "2026-11-01T00:00:00+00:00",
+  "total_usd": 0.2685648,
+  "projected_month_usd": 0.25990141935483874,
+  "runs": 1846,
+  "saved_usd": 0.1146618,
+  "agents": [
+    {
+      "agent": "support_drafter",
+      "runs": 328,
+      "succeeded": 322,
+      "model_calls": 411,
+      "cache_hits": 0,
+      "input_tokens": 204115,
+      "output_tokens": 37992,
+      "usd": 0.1908546,
+      "saved_usd": 0.0,
+      "p50_run_usd": 0.0005166,
+      "p95_run_usd": 0.0009114,
+      "p95_model_ms": 2613,
+      "estimated": false,
+      "owner": "support",
+      "projected_month_usd": 0.18469800000000003,
+      "budget_usd": null
+    },
+    {
+      "agent": "ask_handbook",
+      "runs": 798,
+      "succeeded": 798,
+      "model_calls": 205,
+      "cache_hits": 534,
+      "input_tokens": 43596,
+      "output_tokens": 8467,
+      "usd": 0.0413982,
+      "saved_usd": 0.1146618,
+      "p50_run_usd": 0.0,
+      "p95_run_usd": 0.00022988999999999998,
+      "p95_model_ms": 1125,
+      "estimated": false,
+      "owner": "people-ops",
+      "projected_month_usd": 0.04006277419354839,
+      "budget_usd": null
+    },
+    {
+      "agent": "team_digest",
+      "runs": 720,
+      "succeeded": 716,
+      "model_calls": 116,
+      "cache_hits": 0,
+      "input_tokens": 27808,
+      "output_tokens": 10904,
+      "usd": 0.036312,
+      "saved_usd": 0.0,
+      "p50_run_usd": 0.0,
+      "p95_run_usd": 0.00026543999999999976,
+      "p95_model_ms": 1124,
+      "estimated": false,
+      "owner": "platform",
+      "projected_month_usd": 0.03514064516129032,
+      "budget_usd": null
+    }
+  ],
+  "by_day": [
+    {
+      "day": "2026-10-01",
+      "agent": "ask_handbook",
+      "runs": 20,
+      "usd": 0.0030432
+    },
+    {
+      "day": "2026-10-01",
+      "agent": "support_drafter",
+      "runs": 17,
+      "usd": 0.007632
+    },
+    {
+      "day": "2026-10-01",
+      "agent": "team_digest",
+      "runs": 23,
+      "usd": 0.0006126
+    },
+    {
+      "day": "2026-10-02",
+      "agent": "ask_handbook",
+      "runs": 35,
+      "usd": 0.0034242
+    },
+    {
+      "day": "2026-10-02",
+      "agent": "support_drafter",
+      "runs": 12,
+      "usd": 0.0070194
+    },
+    {
+      "day": "2026-10-02",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0008994
+    },
+    {
+      "day": "2026-10-03",
+      "agent": "ask_handbook",
+      "runs": 4,
+      "usd": 0.0
+    },
+    {
+      "day": "2026-10-03",
+      "agent": "support_drafter",
+      "runs": 5,
+      "usd": 0.0017466
+    },
+    {
+      "day": "2026-10-03",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0011586
+    },
+    {
+      "day": "2026-10-04",
+      "agent": "ask_handbook",
+      "runs": 7,
+      "usd": 0.0005844
+    },
+    {
+      "day": "2026-10-04",
+      "agent": "support_drafter",
+      "runs": 3,
+      "usd": 0.0019368
+    },
+    {
+      "day": "2026-10-04",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0007236
+    },
+    {
+      "day": "2026-10-05",
+      "agent": "ask_handbook",
+      "runs": 35,
+      "usd": 0.0025308
+    },
+    {
+      "day": "2026-10-05",
+      "agent": "support_drafter",
+      "runs": 15,
+      "usd": 0.0081918
+    },
+    {
+      "day": "2026-10-05",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0006486
+    },
+    {
+      "day": "2026-10-06",
+      "agent": "ask_handbook",
+      "runs": 28,
+      "usd": 0.0005772
+    },
+    {
+      "day": "2026-10-06",
+      "agent": "support_drafter",
+      "runs": 18,
+      "usd": 0.0100374
+    },
+    {
+      "day": "2026-10-06",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0010188
+    },
+    {
+      "day": "2026-10-07",
+      "agent": "ask_handbook",
+      "runs": 40,
+      "usd": 0.0011004
+    },
+    {
+      "day": "2026-10-07",
+      "agent": "support_drafter",
+      "runs": 11,
+      "usd": 0.0065874
+    },
+    {
+      "day": "2026-10-07",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0009048
+    },
+    {
+      "day": "2026-10-08",
+      "agent": "ask_handbook",
+      "runs": 34,
+      "usd": 0.0018486
+    },
+    {
+      "day": "2026-10-08",
+      "agent": "support_drafter",
+      "runs": 14,
+      "usd": 0.0081996
+    },
+    {
+      "day": "2026-10-08",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0010602
+    },
+    {
+      "day": "2026-10-09",
+      "agent": "ask_handbook",
+      "runs": 35,
+      "usd": 0.0017724
+    },
+    {
+      "day": "2026-10-09",
+      "agent": "support_drafter",
+      "runs": 14,
+      "usd": 0.0083718
+    },
+    {
+      "day": "2026-10-09",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.000891
+    },
+    {
+      "day": "2026-10-10",
+      "agent": "ask_handbook",
+      "runs": 6,
+      "usd": 0.0002106
+    },
+    {
+      "day": "2026-10-10",
+      "agent": "support_drafter",
+      "runs": 2,
+      "usd": 0.0005136
+    },
+    {
+      "day": "2026-10-10",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0008664
+    },
+    {
+      "day": "2026-10-11",
+      "agent": "ask_handbook",
+      "runs": 6,
+      "usd": 0.0
+    },
+    {
+      "day": "2026-10-11",
+      "agent": "support_drafter",
+      "runs": 4,
+      "usd": 0.0027096
+    },
+    {
+      "day": "2026-10-11",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0006486
+    },
+    {
+      "day": "2026-10-12",
+      "agent": "ask_handbook",
+      "runs": 35,
+      "usd": 0.0026142
+    },
+    {
+      "day": "2026-10-12",
+      "agent": "support_drafter",
+      "runs": 12,
+      "usd": 0.007224
+    },
+    {
+      "day": "2026-10-12",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0006486
+    },
+    {
+      "day": "2026-10-13",
+      "agent": "ask_handbook",
+      "runs": 32,
+      "usd": 0.0019344
+    },
+    {
+      "day": "2026-10-13",
+      "agent": "support_drafter",
+      "runs": 21,
+      "usd": 0.0131844
+    },
+    {
+      "day": "2026-10-13",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0008364
+    },
+    {
+      "day": "2026-10-14",
+      "agent": "ask_handbook",
+      "runs": 26,
+      "usd": 0.0013974
+    },
+    {
+      "day": "2026-10-14",
+      "agent": "support_drafter",
+      "runs": 12,
+      "usd": 0.0077922
+    },
+    {
+      "day": "2026-10-14",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0008784
+    },
+    {
+      "day": "2026-10-15",
+      "agent": "ask_handbook",
+      "runs": 29,
+      "usd": 0.0016398
+    },
+    {
+      "day": "2026-10-15",
+      "agent": "support_drafter",
+      "runs": 15,
+      "usd": 0.0078942
+    },
+    {
+      "day": "2026-10-15",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.000891
+    },
+    {
+      "day": "2026-10-16",
+      "agent": "ask_handbook",
+      "runs": 44,
+      "usd": 0.0018894
+    },
+    {
+      "day": "2026-10-16",
+      "agent": "support_drafter",
+      "runs": 11,
+      "usd": 0.0069114
+    },
+    {
+      "day": "2026-10-16",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0010662
+    },
+    {
+      "day": "2026-10-17",
+      "agent": "ask_handbook",
+      "runs": 10,
+      "usd": 0.0005046
+    },
+    {
+      "day": "2026-10-17",
+      "agent": "support_drafter",
+      "runs": 3,
+      "usd": 0.0010272
+    },
+    {
+      "day": "2026-10-17",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0030918
+    },
+    {
+      "day": "2026-10-18",
+      "agent": "ask_handbook",
+      "runs": 7,
+      "usd": 0.000378
+    },
+    {
+      "day": "2026-10-18",
+      "agent": "support_drafter",
+      "runs": 2,
+      "usd": 0.0010302
+    },
+    {
+      "day": "2026-10-18",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0007044
+    },
+    {
+      "day": "2026-10-19",
+      "agent": "ask_handbook",
+      "runs": 38,
+      "usd": 0.0014934
+    },
+    {
+      "day": "2026-10-19",
+      "agent": "support_drafter",
+      "runs": 12,
+      "usd": 0.0075624
+    },
+    {
+      "day": "2026-10-19",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.000798
+    },
+    {
+      "day": "2026-10-20",
+      "agent": "ask_handbook",
+      "runs": 36,
+      "usd": 0.0016116
+    },
+    {
+      "day": "2026-10-20",
+      "agent": "support_drafter",
+      "runs": 16,
+      "usd": 0.0095424
+    },
+    {
+      "day": "2026-10-20",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0033258
+    },
+    {
+      "day": "2026-10-21",
+      "agent": "ask_handbook",
+      "runs": 32,
+      "usd": 0.0011274
+    },
+    {
+      "day": "2026-10-21",
+      "agent": "support_drafter",
+      "runs": 15,
+      "usd": 0.0088032
+    },
+    {
+      "day": "2026-10-21",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0032862
+    },
+    {
+      "day": "2026-10-22",
+      "agent": "ask_handbook",
+      "runs": 34,
+      "usd": 0.0017304
+    },
+    {
+      "day": "2026-10-22",
+      "agent": "support_drafter",
+      "runs": 13,
+      "usd": 0.006789
+    },
+    {
+      "day": "2026-10-22",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0034536
+    },
+    {
+      "day": "2026-10-23",
+      "agent": "ask_handbook",
+      "runs": 34,
+      "usd": 0.0023112
+    },
+    {
+      "day": "2026-10-23",
+      "agent": "support_drafter",
+      "runs": 15,
+      "usd": 0.00888
+    },
+    {
+      "day": "2026-10-23",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0010182
+    },
+    {
+      "day": "2026-10-24",
+      "agent": "ask_handbook",
+      "runs": 10,
+      "usd": 0.000312
+    },
+    {
+      "day": "2026-10-24",
+      "agent": "support_drafter",
+      "runs": 4,
+      "usd": 0.002361
+    },
+    {
+      "day": "2026-10-24",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0008868
+    },
+    {
+      "day": "2026-10-25",
+      "agent": "ask_handbook",
+      "runs": 5,
+      "usd": 0.0004578
+    },
+    {
+      "day": "2026-10-25",
+      "agent": "support_drafter",
+      "runs": 2,
+      "usd": 0.0013908
+    },
+    {
+      "day": "2026-10-25",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.000771
+    },
+    {
+      "day": "2026-10-26",
+      "agent": "ask_handbook",
+      "runs": 32,
+      "usd": 0.0022032
+    },
+    {
+      "day": "2026-10-26",
+      "agent": "support_drafter",
+      "runs": 10,
+      "usd": 0.0054564
+    },
+    {
+      "day": "2026-10-26",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.000816
+    },
+    {
+      "day": "2026-10-27",
+      "agent": "ask_handbook",
+      "runs": 41,
+      "usd": 0.0015174
+    },
+    {
+      "day": "2026-10-27",
+      "agent": "support_drafter",
+      "runs": 11,
+      "usd": 0.0071622
+    },
+    {
+      "day": "2026-10-27",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.000954
+    },
+    {
+      "day": "2026-10-28",
+      "agent": "ask_handbook",
+      "runs": 32,
+      "usd": 0.0005076
+    },
+    {
+      "day": "2026-10-28",
+      "agent": "support_drafter",
+      "runs": 15,
+      "usd": 0.0085272
+    },
+    {
+      "day": "2026-10-28",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0011886
+    },
+    {
+      "day": "2026-10-29",
+      "agent": "ask_handbook",
+      "runs": 32,
+      "usd": 0.0005916
+    },
+    {
+      "day": "2026-10-29",
+      "agent": "support_drafter",
+      "runs": 13,
+      "usd": 0.0080988
+    },
+    {
+      "day": "2026-10-29",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.0010332
+    },
+    {
+      "day": "2026-10-30",
+      "agent": "ask_handbook",
+      "runs": 37,
+      "usd": 0.002085
+    },
+    {
+      "day": "2026-10-30",
+      "agent": "support_drafter",
+      "runs": 11,
+      "usd": 0.0082716
+    },
+    {
+      "day": "2026-10-30",
+      "agent": "team_digest",
+      "runs": 24,
+      "usd": 0.001011
+    },
+    {
+      "day": "2026-10-31",
+      "agent": "ask_handbook",
+      "runs": 2,
+      "usd": 0.0
+    },
+    {
+      "day": "2026-10-31",
+      "agent": "team_digest",
+      "runs": 1,
+      "usd": 0.0002202
+    }
+  ],
+  "outliers": [],
+  "repeats": [
+    {
+      "agent": "ask_handbook",
+      "paid_calls": 205,
+      "repeat_calls": 116,
+      "repeated_requests": 68,
+      "repeat_usd": 0.0239298
+    },
+    {
+      "agent": "team_digest",
+      "paid_calls": 116,
+      "repeat_calls": 45,
+      "repeated_requests": 4,
+      "repeat_usd": 0.0068586
+    }
+  ],
+  "findings": [
+    {
+      "kind": "security",
+      "title": "6 runs tried something their role does not allow, and Postgres refused",
+      "evidence": "From: customer:cust19 (4), customer:cust12 (1), customer:cust18 (1). First refusal: tool select support.integration_tokens: permission denied for table integration_tokens. Nothing was read or written; each run stopped at the refusal ($0.0021 spent).",
+      "action": "No rotation needed: nothing was exposed. Read one with `counsel replay <run>` to see the instruction that tried it, and tell the customer's account owner.",
+      "owner": "security",
+      "agent": null,
+      "monthly_usd": 0.0,
+      "runs": [
+        "140da9b9-0475-474c-98c1-e98ad7e42405",
+        "1f415805-c589-4e47-a157-9eb0fc58fcac",
+        "89a8e007-10f9-45d1-bdb8-96e55bc7792c"
+      ],
+      "share": 0.0
+    },
+    {
+      "kind": "cost",
+      "title": "support_drafter makes a second model call in 40% of runs",
+      "evidence": "117 of 294 runs (40%) called a tool before drafting. Each later turn re-sends the whole conversation, 534 input tokens against 482 for the first. Later turns cost $0.0631 of $0.1909.",
+      "action": "Give the model what it keeps asking for in the first prompt (for the support drafter, the ticket thread), so most runs draft in one call. Upper bound on the saving shown.",
+      "owner": "support",
+      "agent": "support_drafter",
+      "monthly_usd": 0.06107458064516129,
+      "runs": [],
+      "share": 0.3306726691418493
+    },
+    {
+      "kind": "cost",
+      "title": "ask_handbook pays for the same answer again",
+      "evidence": "116 of 205 paid calls (57%) repeated a request already answered in the window (68 distinct requests), $0.0239. Same prompt, same documents, so the same answer.",
+      "action": "ask_handbook already caches for 168 h; these repeats fell outside it. Lengthen cache_hours if answers can be that old.",
+      "owner": "people-ops",
+      "agent": "ask_handbook",
+      "monthly_usd": 0.023157870967741936,
+      "runs": [],
+      "share": 0.5780396249112281
+    },
+    {
+      "kind": "waste",
+      "title": "team_digest: 12 billed calls produced nothing (output truncated at max_tokens=400)",
+      "evidence": "12 calls across 4 runs were cut off and discarded, $0.0105. A retry sends the same prompt with the same limit, so it is cut off again. 4 runs failed every attempt and wrote nothing.",
+      "action": "Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.",
+      "owner": "platform",
+      "agent": "team_digest",
+      "monthly_usd": 0.010117161290322581,
+      "runs": [
+        "7433cfd1-9008-43da-8740-1052eb0f8846",
+        "b154ca1d-b194-40c2-8c2d-41e0f0699dfd",
+        "ed07ecad-8e01-4eef-9f76-1fb63c4d6e5c"
+      ],
+      "share": 0.2879048248512889
+    },
+    {
+      "kind": "cost",
+      "title": "team_digest pays for the same answer again",
+      "evidence": "45 of 116 paid calls (39%) repeated a request already answered in the window (4 distinct requests), $0.0069. Same prompt, same documents, so the same answer.",
+      "action": "The same input produced the same output again (a quiet day resends identical activity). Skip the run when nothing changed since the last one; caching is T0 only and team_digest is T1.",
+      "owner": "platform",
+      "agent": "team_digest",
+      "monthly_usd": 0.006637354838709678,
+      "runs": [],
+      "share": 0.18887970918704564
+    },
+    {
+      "kind": "cost",
+      "title": "customer:cust19 drives 65% of support_drafter spend",
+      "evidence": "212 runs, $0.1233, against 22 other requesters.",
+      "action": "Look at what they ask: a docs page or a product fix may remove the questions entirely. Not a saving the platform can make on its own.",
+      "owner": "support",
+      "agent": "support_drafter",
+      "monthly_usd": 0.0,
+      "runs": [],
+      "share": 0.0
+    }
+  ]
+}

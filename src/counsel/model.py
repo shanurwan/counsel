@@ -29,7 +29,15 @@ DEFAULT_MODELS = (
 
 
 class ModelError(Exception):
-    pass
+    """A call that produced no usable answer. A truncated answer was still
+    generated and billed, so it carries the model and usage for the cost log."""
+
+    def __init__(self, message: str, *, model: str | None = None,
+                 prompt_tokens: int | None = None, output_tokens: int | None = None):
+        super().__init__(message)
+        self.model = model
+        self.prompt_tokens = prompt_tokens
+        self.output_tokens = output_tokens
 
 
 @dataclass(frozen=True)
@@ -109,7 +117,9 @@ class NvidiaModel:
                     usage = data.get("usage") or {}
                     if choice.get("finish_reason") == "length":
                         # A truncated answer must never be written as if it were whole.
-                        raise ModelError(f"{model}: output truncated at max_tokens={max_tokens}")
+                        raise ModelError(f"{model}: output truncated at max_tokens={max_tokens}",
+                                         model=model, prompt_tokens=usage.get("prompt_tokens"),
+                                         output_tokens=usage.get("completion_tokens"))
                     return Completion(
                         text=(msg.get("content") or "").strip(),
                         provider="nvidia",

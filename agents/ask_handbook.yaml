@@ -8,3 +8,4 @@ capabilities: [read_handbook, write_answers]
 triggers:
   events: [question_asked]
 suite: evals/ask_handbook
+cache_hours: 168

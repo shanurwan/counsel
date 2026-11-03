@@ -1,4 +1,4 @@
-"""counsel validate | compile | audit | bench"""
+"""counsel validate | compile | audit | bench | report | trace | simulate"""
 
 from __future__ import annotations
 
@@ -194,7 +194,49 @@ def cmd_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    """Spend per run, agent and requester, and the findings an owner can act on."""
+    from datetime import datetime, timezone
+
+    import psycopg
+
+    from . import cost
+
+    with psycopg.connect(_dsn(args)) as conn:
+        since, until = cost.window(conn)
+        if args.since:
+            since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
+        if args.until:
+            until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
+        report = cost.build(conn, _load(), since, until)
+    if args.out:
+        cost.write(report, Path(args.out))
+    print(cost.render(report))
+    return 0
+
+
+def cmd_trace(args: argparse.Namespace) -> int:
+    """One run as OpenTelemetry (OTLP/JSON) spans."""
+    import json
+
+    import psycopg
+
+    from . import cost
+
+    with psycopg.connect(_dsn(args)) as conn:
+        print(json.dumps(cost.trace(conn, args.run_id), indent=2))
+    return 0
+
+
+def cmd_simulate(args: argparse.Namespace) -> int:
+    from .simulate import run
+
+    return run(args.admin_url, Path(args.out), args.days)
+
+
 def main(argv: list[str] | None = None) -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # reports print · and × on Windows consoles too
     parser = argparse.ArgumentParser(prog="counsel")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
@@ -231,6 +273,24 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--admin-url", default=os.environ.get("COUNSEL_TEST_ADMIN_URL"))
     p.add_argument("--out", default="bench")
     p.set_defaults(fn=cmd_bench)
+
+    p = sub.add_parser("report", help="spend per agent, run and requester, with findings to act on")
+    p.add_argument("--dsn")
+    p.add_argument("--since", help="UTC date, default: first recorded run")
+    p.add_argument("--until", help="UTC date, default: the day after the last run")
+    p.add_argument("--out", help="also write REPORT.md and report.json to this directory")
+    p.set_defaults(fn=cmd_report)
+
+    p = sub.add_parser("trace", help="export one run as OpenTelemetry spans (OTLP/JSON)")
+    p.add_argument("run_id")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_trace)
+
+    p = sub.add_parser("simulate", help="play a synthetic month and benchmark the cost report's fix")
+    p.add_argument("--admin-url", default=os.environ.get("COUNSEL_TEST_ADMIN_URL"))
+    p.add_argument("--out", default="cost")
+    p.add_argument("--days", type=int, default=30)
+    p.set_defaults(fn=cmd_simulate)
 
     args = parser.parse_args(argv)
     return args.fn(args)

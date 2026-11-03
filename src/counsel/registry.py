@@ -31,7 +31,11 @@ CAPABILITIES: dict[str, str] = {
 }
 
 REQUIRED = ("name", "description", "owner", "tier", "capabilities", "triggers", "suite")
-ALLOWED = set(REQUIRED)
+# budget_usd: the owner's monthly model spend; `counsel report` flags a projected overrun.
+# cache_hours: reuse the answer to an identical request for this long. T0 only:
+# a T0 prompt holds the question and handbook text, never another person's data.
+OPTIONAL = ("budget_usd", "cache_hours")
+ALLOWED = set(REQUIRED) | set(OPTIONAL)
 TRIGGER_KEYS = {"schedule", "events"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
 OWNER_RE = re.compile(r"^[a-z][a-z0-9._-]{1,40}$")
@@ -54,6 +58,8 @@ class Agent:
     events: tuple[str, ...]
     suite: str
     source: str = field(default="", compare=False)
+    budget_usd: float | None = None
+    cache_hours: int | None = None
 
     @property
     def role(self) -> str:
@@ -110,6 +116,17 @@ def validate_entry(doc: object, source: str) -> list[str]:
             # Over-tiering hides what an agent can really do and buys review it does not need.
             problems.append(f"{where}: tier {tier} is higher than its capabilities need ({TIERS[needed]})")
 
+    budget = doc.get("budget_usd")
+    if budget is not None and (isinstance(budget, bool) or not isinstance(budget, (int, float)) or budget <= 0):
+        problems.append(f"{where}: budget_usd must be a positive number of dollars per month")
+    cache = doc.get("cache_hours")
+    if cache is not None:
+        if isinstance(cache, bool) or not isinstance(cache, int) or not 1 <= cache <= 24 * 30:
+            problems.append(f"{where}: cache_hours must be a whole number of hours, 1 to 720")
+        elif tier != "T0":
+            problems.append(f"{where}: cache_hours is only allowed at T0 (higher tiers read "
+                            "per-person or per-customer data)")
+
     triggers = doc.get("triggers") or {}
     if not isinstance(triggers, dict):
         problems.append(f"{where}: triggers must be a mapping")
@@ -147,6 +164,8 @@ def load(directory: Path) -> list[Agent]:
             events=tuple(triggers.get("events") or ()),
             suite=doc["suite"],
             source=source,
+            budget_usd=doc.get("budget_usd"),
+            cache_hours=doc.get("cache_hours"),
         ))
 
     names = [a.name for a in agents]

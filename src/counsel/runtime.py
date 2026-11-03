@@ -58,6 +58,7 @@ class RunContext:
     # transaction; RLS policies read it. The model never writes SQL, so it
     # cannot widen it.
     scope: dict[str, str] = field(default_factory=dict)
+    clock: Callable[[], datetime] = field(default=lambda: utcnow())
 
     def _role(self, role: str) -> None:
         self.conn.execute(f'set local role "{role}"')
@@ -76,8 +77,9 @@ class RunContext:
                 output = fn(self.conn)
                 self._role(ORCHESTRATOR_ROLE)
                 self.conn.execute(
-                    "insert into counsel.steps (run_id, seq, name, output) values (%s, %s, %s, %s)",
-                    (self.run_id, self.seq, name, json.dumps(output)),
+                    "insert into counsel.steps (run_id, seq, name, output, finished_at) "
+                    "values (%s, %s, %s, %s, %s)",
+                    (self.run_id, self.seq, name, json.dumps(output), self.clock()),
                 )
         except psycopg.Error as e:
             if e.sqlstate in DENIALS:
@@ -92,42 +94,72 @@ class RunContext:
             self.replayed.append(name)
             return self.journal[self.seq]["text"]
 
+        digest = request_hash(messages, max_tokens)
+        cached = self._cached(digest)
+        if cached:
+            source_id, model, text = cached
+            self._record(name, digest, messages, max_tokens, provider="cache", model=model, text=text,
+                         latency_ms=0, prompt_tokens=0, output_tokens=0, cached_from=source_id)
+            return text
+
         started = time.monotonic()
-        result: Completion | None = None
-        error = None
         try:
             result = self.model.complete(messages, max_tokens=max_tokens)
         except ModelError as e:
-            error = str(e)
+            # Recorded with whatever usage the provider reported: a truncated
+            # answer was billed even though it is never used.
+            self._record(name, digest, messages, max_tokens, provider="unknown", model=e.model or "unknown",
+                         error=str(e), latency_ms=int((time.monotonic() - started) * 1000),
+                         prompt_tokens=e.prompt_tokens, output_tokens=e.output_tokens)
+            raise
+        self._record(name, digest, messages, max_tokens, provider=result.provider, model=result.model,
+                     text=result.text, latency_ms=result.latency_ms,
+                     prompt_tokens=result.prompt_tokens, output_tokens=result.output_tokens)
+        return result.text
 
+    def _cached(self, digest: str) -> tuple[int, str, str] | None:
+        """An earlier answer to the identical request, if this agent opted in (T0 only).
+
+        The hash covers the whole prompt, handbook excerpts included, so an
+        edited document is a different request and is never served stale.
+        """
+        if not self.agent.cache_hours:
+            return None
+        with self.conn.transaction():
+            self._role(ORCHESTRATOR_ROLE)
+            return self.conn.execute(
+                """select c.id, c.model, c.response ->> 'text'
+                   from counsel.model_calls c join counsel.runs r on r.id = c.run_id
+                   where c.request_hash = %s and r.agent = %s and c.cached_from is null
+                     and c.error is null and c.response is not null and c.created_at > %s
+                   order by c.id desc limit 1""",
+                (digest, self.agent.name, self.clock() - timedelta(hours=self.agent.cache_hours)),
+            ).fetchone()
+
+    def _record(self, step: str, digest: str, messages: list[dict], max_tokens: int, *, provider: str, model: str,
+                latency_ms: int, text: str | None = None, error: str | None = None,
+                prompt_tokens: int | None = None, output_tokens: int | None = None,
+                cached_from: int | None = None) -> None:
+        """The model call row and, if it answered, its journal step, in one transaction."""
         with self.conn.transaction():
             self._role(ORCHESTRATOR_ROLE)
             self.conn.execute(
                 """insert into counsel.model_calls
                    (run_id, step_seq, provider, model, request_hash, request, response, error,
-                    latency_ms, prompt_tokens, output_tokens)
-                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-                (
-                    self.run_id, self.seq,
-                    result.provider if result else "unknown",
-                    result.model if result else "unknown",
-                    request_hash(messages, max_tokens),
-                    json.dumps({"messages": messages, "max_tokens": max_tokens}),
-                    json.dumps({"text": result.text}) if result else None,
-                    error,
-                    result.latency_ms if result else int((time.monotonic() - started) * 1000),
-                    result.prompt_tokens if result else None,
-                    result.output_tokens if result else None,
-                ),
+                    latency_ms, prompt_tokens, output_tokens, cached_from, created_at)
+                   values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (self.run_id, self.seq, provider, model, digest,
+                 json.dumps({"messages": messages, "max_tokens": max_tokens}),
+                 json.dumps({"text": text}) if text is not None else None, error,
+                 latency_ms, prompt_tokens, output_tokens, cached_from, self.clock()),
             )
-            if result:
+            if text is not None:
                 self.conn.execute(
-                    "insert into counsel.steps (run_id, seq, name, output) values (%s, %s, %s, %s)",
-                    (self.run_id, self.seq, name, json.dumps({"text": result.text, "model": result.model})),
+                    "insert into counsel.steps (run_id, seq, name, output, finished_at) "
+                    "values (%s, %s, %s, %s, %s)",
+                    (self.run_id, self.seq, step, json.dumps({"text": text, "model": model}),
+                     self.clock()),
                 )
-        if error:
-            raise ModelError(error)
-        return result.text
 
 
 Implementation = Callable[[RunContext, dict], None]
@@ -157,10 +189,10 @@ class Worker:
                 it = croniter(agent.schedule, now - SCHEDULE_WINDOW)
                 while (fire := it.get_next(datetime)) <= now:
                     cur = self.conn.execute(
-                        """insert into counsel.jobs (agent, idempotency_key, payload)
-                           values (%s, %s, %s) on conflict (idempotency_key) do nothing""",
+                        """insert into counsel.jobs (agent, idempotency_key, payload, not_before)
+                           values (%s, %s, %s, %s) on conflict (idempotency_key) do nothing""",
                         (agent.name, f"schedule:{agent.name}:{fire.isoformat()}",
-                         json.dumps({"scheduled_for": fire.isoformat()})),
+                         json.dumps({"scheduled_for": fire.isoformat()}), fire),
                     )
                     added += cur.rowcount
         return added
@@ -214,8 +246,9 @@ class Worker:
             run_id = job["run_id"]
             if run_id is None:
                 run_id = self.conn.execute(
-                    "insert into counsel.runs (job_id, agent, attempt) values (%s, %s, %s) returning id",
-                    (job["id"], job["agent"], job["attempts"]),
+                    "insert into counsel.runs (job_id, agent, attempt, started_at) "
+                    "values (%s, %s, %s, %s) returning id",
+                    (job["id"], job["agent"], job["attempts"], now),
                 ).fetchone()[0]
                 self.conn.execute("update counsel.jobs set run_id = %s where id = %s", (run_id, job["id"]))
             else:
@@ -228,7 +261,7 @@ class Worker:
             self._finish(job, run_id, "failed", "dead", f"no implementation for agent {job['agent']!r}")
             return "dead"
 
-        ctx = RunContext(self.conn, str(run_id), agent, self.model, journal)
+        ctx = RunContext(self.conn, str(run_id), agent, self.model, journal, clock=self.clock)
         try:
             impl(ctx, job["payload"])
         except Denied as e:

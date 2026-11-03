@@ -1,0 +1,30 @@
+{
+  "workload": {
+    "days": 30,
+    "employees": 80,
+    "customers": 24,
+    "verbatim_question_share": 0.65,
+    "runs": 1846
+  },
+  "before": {
+    "total_usd": 0.38322660000000003,
+    "handbook_usd": 0.15606,
+    "paid_calls": 1266
+  },
+  "after": {
+    "total_usd": 0.2685648,
+    "handbook_usd": 0.0413982,
+    "paid_calls": 732,
+    "cache_hits": 534
+  },
+  "answers_compared": 798,
+  "answers_changed": 0,
+  "findings_before": [
+    "6 runs tried something their role does not allow, and Postgres refused",
+    "ask_handbook pays for the same answer again",
+    "support_drafter makes a second model call in 40% of runs",
+    "team_digest: 12 billed calls produced nothing (output truncated at max_tokens=400)",
+    "team_digest pays for the same answer again",
+    "customer:cust19 drives 65% of support_drafter spend"
+  ]
+}
