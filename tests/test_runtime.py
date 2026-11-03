@@ -20,7 +20,8 @@ from counsel.runtime import LEASE, Worker
 HANDBOOK_ONLY = {"ask_handbook": ask_handbook}  # keeps scheduled digests out of question tests
 
 # 00:05 UTC is 09:05 in Tokyo (team core) and 21:05 in Sao Paulo (team growth).
-NOW = datetime(2026, 11, 3, 0, 5, tzinfo=timezone.utc)
+# Tomorrow, so it is always after jobs that triggers enqueue at the database's now().
+NOW = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=0, minute=5, second=0, microsecond=0)
 
 
 class FakeModel:
@@ -85,7 +86,7 @@ def test_schedules_enqueue_once_per_fire_time_and_only_implemented_agents(admin,
     assert w.enqueue_due(NOW) == 1  # team_digest at 00:00; nudge etc. have no implementation yet
     assert w.enqueue_due(NOW) == 0
     assert one(admin, "select agent, payload->>'scheduled_for' from counsel.jobs") == (
-        "team_digest", "2026-11-03T00:00:00+00:00")
+        "team_digest", NOW.replace(minute=0).isoformat())
 
 
 def test_question_event_is_answered_once_with_citation_and_agent_identity(admin, make_worker):
