@@ -40,7 +40,7 @@ Cloud's free tier. It holds:
 - **A data source.** Grafana connects to Supabase as `counsel_reader`
   ([`db/migrations/0006_reader.sql`](../db/migrations/0006_reader.sql)). That
   login has SELECT on `call_costs`, `run_costs` and `model_prices` and nothing
-  else. It is read-only, has a 10-second statement timeout and at most 3
+  else. It is read-only, has a 10-second statement timeout and at most 10
   connections. It sees dollars, tokens and run metadata, never a prompt, a
   ticket, a task or a secret. `counsel audit` fails if it can reach anything
   more.
