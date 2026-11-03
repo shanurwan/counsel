@@ -12,7 +12,9 @@ begin
   end if;
 end $$;
 
-alter role counsel_reader login noinherit nosuperuser nocreatedb nocreaterole nobypassrls noreplication
+-- No NOSUPERUSER or NOREPLICATION: on Supabase the admin is not a superuser and may not
+-- name those attributes, even to turn them off. A new role has neither; the audit checks.
+alter role counsel_reader login noinherit nocreatedb nocreaterole nobypassrls
   connection limit 3;
 -- A slow dashboard query must never hold up the agents.
 alter role counsel_reader set statement_timeout = '10s';
