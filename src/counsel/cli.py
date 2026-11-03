@@ -1,4 +1,4 @@
-"""counsel validate | compile | audit"""
+"""counsel validate | compile | audit | bench"""
 
 from __future__ import annotations
 
@@ -151,6 +151,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bench(args: argparse.Namespace) -> int:
+    from .bench import run
+
+    return run(args.admin_url, Path(args.out))
+
+
 def cmd_replay(args: argparse.Namespace) -> int:
     """Reconstruct a run from the journal: every step, model call and outcome."""
     import psycopg
@@ -220,6 +226,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("run_id")
     p.add_argument("--dsn")
     p.set_defaults(fn=cmd_replay)
+
+    p = sub.add_parser("bench", help="run the incident bench against a throwaway database")
+    p.add_argument("--admin-url", default=os.environ.get("COUNSEL_TEST_ADMIN_URL"))
+    p.add_argument("--out", default="bench")
+    p.set_defaults(fn=cmd_bench)
 
     args = parser.parse_args(argv)
     return args.fn(args)
