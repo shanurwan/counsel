@@ -6,7 +6,7 @@ import psycopg
 import pytest
 
 from counsel import audit, tools
-from counsel.behaviors import ACTION_FLAG, SUPPORT_NOT_COVERED, flag_action_offers, support_drafter
+from counsel.behaviors import ACTION_FLAG, SUPPORT_NOT_COVERED, flag_action_offers, parse_call, support_drafter
 
 from conftest import acting_as, denied
 from test_runtime import FakeModel, admin, make_worker, one, runtime_url  # noqa: F401
@@ -172,3 +172,9 @@ def test_the_flag_reaches_the_stored_draft(support_admin, make_worker):
                            'proceed with the pooler change [product/connection-pooling.md]?"}}')
     make_worker(model, SUPPORT_ONLY).tick()
     assert one(support_admin, "select body from counsel.drafts")[0].startswith(ACTION_FLAG)
+
+
+def test_raw_line_breaks_inside_the_model_json_still_parse():
+    text = '{"tool": "draft_reply", "args": {"body": "Line one.\n\nLine two [product/backups.md]."} }'
+    assert parse_call(text) == {"tool": "draft_reply",
+                                "args": {"body": "Line one.\n\nLine two [product/backups.md]."}}

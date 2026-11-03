@@ -179,7 +179,8 @@ def parse_call(text: str) -> dict:
     start, end = text.find("{"), text.rfind("}")
     if start != -1 and end > start:
         try:
-            call = json.loads(text[start:end + 1])
+            # strict=False: models put raw line breaks inside JSON strings.
+            call = json.loads(text[start:end + 1], strict=False)
             if isinstance(call, dict) and isinstance(call.get("tool"), str):
                 return call
         except ValueError:
