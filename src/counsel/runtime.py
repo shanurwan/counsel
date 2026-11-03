@@ -53,6 +53,11 @@ class RunContext:
     journal: dict[int, Any]
     seq: int = 0
     replayed: list[str] = field(default_factory=list)
+    # Row-level scope for the agent's reads, e.g. {"counsel.ticket": <id>}. Set
+    # by the behavior from the job payload, applied in every step's
+    # transaction; RLS policies read it. The model never writes SQL, so it
+    # cannot widen it.
+    scope: dict[str, str] = field(default_factory=dict)
 
     def _role(self, role: str) -> None:
         self.conn.execute(f'set local role "{role}"')
@@ -65,6 +70,8 @@ class RunContext:
             return self.journal[self.seq]
         try:
             with self.conn.transaction():
+                for key, value in self.scope.items():
+                    self.conn.execute("select set_config(%s, %s, true)", (key, value))
                 self._role(self.agent.role if as_agent else ORCHESTRATOR_ROLE)
                 output = fn(self.conn)
                 self._role(ORCHESTRATOR_ROLE)

@@ -30,7 +30,15 @@ CAPABILITY_SQL: dict[str, list[str]] = {
         "grant usage on schema work to {role};",
         "grant select on work.task_updates to {role};",
     ],
+    "read_tickets": [
+        "grant usage on schema support to {role};",
+        "grant select (id, customer_id, subject, body, created_at) on support.tickets to {role};",
+        "grant select (id, ticket_id, author, body, created_at) on support.ticket_messages to {role};",
+    ],
     "write_drafts": [
+        "grant insert (id, run_id, kind, body) on counsel.drafts to {role};",
+    ],
+    "draft_support_replies": [
         "grant insert (id, run_id, kind, body) on counsel.drafts to {role};",
     ],
     "carry_updates": [
@@ -82,8 +90,8 @@ end $$;
 alter role {role} nologin nocreatedb nocreaterole nobypassrls;
 grant {group} to {role};
 grant {role} to {runtime};
-revoke all on all tables in schema work, kb, counsel from {role};
-revoke all on schema work, kb, counsel from {role};
+revoke all on all tables in schema work, kb, counsel, support from {role};
+revoke all on schema work, kb, counsel, support from {role};
 {grants}
 """
 

@@ -54,9 +54,25 @@ CHECKS: dict[str, str] = {
             ('work.consents', 'INSERT'), ('work.consents', 'UPDATE'),
             ('work.consents', 'DELETE'), ('work.consents', 'TRUNCATE'),
             ('counsel.audit_log', 'UPDATE'), ('counsel.audit_log', 'DELETE'),
-            ('counsel.audit_log', 'TRUNCATE')
+            ('counsel.audit_log', 'TRUNCATE'),
+            -- the customer-visible thread: only people post there
+            ('support.ticket_messages', 'INSERT'), ('support.ticket_messages', 'UPDATE'),
+            ('support.ticket_messages', 'DELETE'), ('support.ticket_messages', 'TRUNCATE'),
+            ('support.tickets', 'UPDATE'), ('support.tickets', 'DELETE'),
+            ('support.tickets', 'TRUNCATE')
         ) t(tbl, priv)
         where has_table_privilege(s.rolname, t.tbl, t.priv)
+    """,
+    "secret reachable": """
+        select s.rolname, format('%%s on support.integration_tokens', p.priv)
+        from subjects s
+        cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('REFERENCES')) p(priv)
+        where has_any_column_privilege(s.rolname, 'support.integration_tokens', p.priv)
+        union all
+        select s.rolname, format('%%s on support.integration_tokens', p.priv)
+        from subjects s
+        cross join (values ('DELETE'), ('TRUNCATE'), ('TRIGGER')) p(priv)
+        where has_table_privilege(s.rolname, 'support.integration_tokens', p.priv)
     """,
     "dangerous role attribute": """
         select r.rolname, a.attr
@@ -147,7 +163,8 @@ def run(conn: psycopg.Connection, agents: list[Agent] | None = None) -> list[Vio
 
 def matrix(conn: psycopg.Connection, agents: list[Agent]) -> str:
     """The table a reviewer reads first, built from has_*_privilege on the live database."""
-    head = ["Agent role", "Tier", "read tasks", "add update note", *COMMITMENT_COLUMNS]
+    head = ["Agent role", "Tier", "read tasks", "add update note", *COMMITMENT_COLUMNS,
+            "read secrets", "post to customer"]
     rows = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     roles = [(a.role, a.tier) for a in sorted(agents, key=lambda a: a.name)]
     roles += [(ORCHESTRATOR_ROLE, "platform"), (RUNTIME_ROLE, "platform")]
@@ -162,7 +179,9 @@ def matrix(conn: psycopg.Connection, agents: list[Agent]) -> str:
                        has_column_privilege(%(r)s, 'work.tasks', 'due_date', 'UPDATE')
                          or has_column_privilege(%(r)s, 'work.tasks', 'due_date', 'INSERT'),
                        has_column_privilege(%(r)s, 'work.tasks', 'status', 'UPDATE')
-                         or has_column_privilege(%(r)s, 'work.tasks', 'status', 'INSERT')
+                         or has_column_privilege(%(r)s, 'work.tasks', 'status', 'INSERT'),
+                       has_any_column_privilege(%(r)s, 'support.integration_tokens', 'SELECT'),
+                       has_table_privilege(%(r)s, 'support.ticket_messages', 'INSERT')
                 """,
                 {"r": role},
             )

@@ -1,0 +1,11 @@
+name: support_drafter
+description: >
+  Drafts a reply to a new support ticket from the product docs, with
+  citations. A support engineer edits and sends it; the agent cannot post to
+  the customer's thread and sees only the ticket it was started for.
+owner: support
+tier: T2
+capabilities: [read_handbook, read_tickets, draft_support_replies]
+triggers:
+  events: [ticket_opened]
+suite: evals/support_drafter

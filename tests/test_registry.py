@@ -51,7 +51,7 @@ def test_raw_grants_are_not_a_thing():
 
 
 def test_repository_registry_is_valid(agents):
-    assert len(agents) == 7
+    assert len(agents) == 8
     assert {a.tier for a in agents} == {"T0", "T1", "T2", "T3"}
 
 

@@ -2,7 +2,8 @@
 
 An agent cannot ask for raw grants. It picks named capabilities, and each
 capability has a minimum tier and a fixed SQL template in compiler.py. There is
-no capability that touches owner_id, due_date or status on work.tasks.
+no capability that touches owner_id, due_date or status on work.tasks, that
+writes to a customer-visible thread, or that reads support.integration_tokens.
 """
 
 from __future__ import annotations
@@ -21,7 +22,10 @@ CAPABILITIES: dict[str, str] = {
     "write_answers": "T0",
     "read_tasks": "T1",
     "read_updates": "T1",
+    "read_tickets": "T1",
     "write_drafts": "T1",
+    # A draft meant for a customer: external-facing, so a person sends it.
+    "draft_support_replies": "T2",
     "carry_updates": "T2",
     "send_messages": "T3",
 }
