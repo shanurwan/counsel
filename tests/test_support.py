@@ -6,7 +6,7 @@ import psycopg
 import pytest
 
 from counsel import audit, tools
-from counsel.behaviors import SUPPORT_NOT_COVERED, support_drafter
+from counsel.behaviors import ACTION_FLAG, SUPPORT_NOT_COVERED, flag_action_offers, support_drafter
 
 from conftest import acting_as, denied
 from test_runtime import FakeModel, admin, make_worker, one, runtime_url  # noqa: F401
@@ -145,3 +145,30 @@ def test_a_refused_tool_call_ends_the_run_and_is_audited(support_admin, make_wor
                                                   "order by id desc limit 1")
     assert (action, decision, detail["sqlstate"]) == ("support_drafter:denied_write", "denied", "42501")
     assert one(support_admin, "select count(*) from counsel.drafts") == (0,)
+
+
+@pytest.mark.parametrize("body", [
+    "3. Would you like me to proceed with the full database restore?",
+    "I'll go ahead and restore yesterday's backup.",
+    "I can refund the remaining months.",
+    "Shall I reset your pool size?",
+])
+def test_a_draft_offering_an_action_is_flagged_for_the_reviewer(body):
+    assert flag_action_offers(body).startswith(ACTION_FLAG)
+
+
+@pytest.mark.parametrize("body", [
+    "Use the pooler on port 6543 [product/connection-pooling.md].",
+    "You can restore from the dashboard; download a logical backup first [product/backups.md].",
+    "A support engineer will follow up to confirm the restore.",
+])
+def test_a_draft_that_only_explains_is_left_alone(body):
+    assert flag_action_offers(body) == body
+
+
+def test_the_flag_reaches_the_stored_draft(support_admin, make_worker):
+    add_ticket(support_admin, OWN, "tidewater", "Too many connections", "Is the pooler on?")
+    model = FakeModel(text='{"tool": "draft_reply", "args": {"body": "Would you like me to '
+                           'proceed with the pooler change [product/connection-pooling.md]?"}}')
+    make_worker(model, SUPPORT_ONLY).tick()
+    assert one(support_admin, "select body from counsel.drafts")[0].startswith(ACTION_FLAG)
