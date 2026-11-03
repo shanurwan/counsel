@@ -35,7 +35,12 @@ SUBJECTS = sql.SQL("""
   ),
   subjects as (select rolname from pg_roles where oid in (select oid from s))
 """)
-PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE}
+# The dashboard login (db/migrations/0006_reader.sql): the cost views, read-only, nothing else.
+READER_ROLE = "counsel_reader"
+READER_ALLOWED = ("counsel.call_costs", "counsel.run_costs", "counsel.model_prices")
+
+PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
+          "reader": READER_ROLE, "reader_allowed": list(READER_ALLOWED)}
 
 CHECKS: dict[str, str] = {
     "commitment column writable": """
@@ -121,6 +126,35 @@ CHECKS: dict[str, str] = {
           and p.prorettype not in ('trigger'::regtype, 'event_trigger'::regtype)
           and n.nspname not in ('pg_catalog', 'information_schema')
           and has_function_privilege(s.rolname, p.oid, 'EXECUTE')
+    """,
+    "reader reaches beyond the cost views": """
+        select %(reader)s, format('%%s on %%s', p.priv, c.oid::regclass)
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'),
+                           ('REFERENCES'), ('TRIGGER')) p(priv)
+        where exists (select from pg_roles where rolname = %(reader)s)
+          and c.relkind in ('r', 'v', 'm', 'p', 'f')
+          and n.nspname not in ('pg_catalog', 'information_schema')
+          and has_schema_privilege(%(reader)s, n.oid, 'USAGE')
+          and (has_table_privilege(%(reader)s, c.oid, p.priv)
+               or (p.priv in ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES')
+                   and has_any_column_privilege(%(reader)s, c.oid, p.priv)))
+          and not (p.priv = 'SELECT' and c.oid::regclass::text = any(%(reader_allowed)s))
+        union all
+        select r.rolname, a.attr
+        from pg_roles r
+        cross join lateral (values
+            ('superuser', r.rolsuper), ('createrole', r.rolcreaterole), ('createdb', r.rolcreatedb),
+            ('bypassrls', r.rolbypassrls), ('replication', r.rolreplication), ('inherit', r.rolinherit)
+        ) a(attr, bad)
+        where r.rolname = %(reader)s and a.bad
+        union all
+        select m.rolname, format('member of %%s', g.rolname)
+        from pg_auth_members am
+        join pg_roles m on m.oid = am.member
+        join pg_roles g on g.oid = am.roleid
+        where m.rolname = %(reader)s
     """,
 }
 

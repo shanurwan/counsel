@@ -26,8 +26,61 @@ The aim is a report someone acts on, not a dashboard someone looks at.
    backend. `counsel replay <run>` still prints the whole story in the
    terminal.
 
+6. **Watched.** A Grafana dashboard and four alert rules read the same views
+   (see [Dashboard and alerts](#dashboard-and-alerts)).
+
 Agents cannot read any of it. No cost table or view is granted to an agent,
 the orchestrator or the runtime login (`tests/test_cost.py`).
+
+## Dashboard and alerts
+
+[`infra/grafana/`](../infra/grafana) is a separate Terraform root for Grafana
+Cloud's free tier. It holds:
+
+- **A data source.** Grafana connects to Supabase as `counsel_reader`
+  ([`db/migrations/0006_reader.sql`](../db/migrations/0006_reader.sql)). That
+  login has SELECT on `call_costs`, `run_costs` and `model_prices` and nothing
+  else. It is read-only, has a 10-second statement timeout and at most 3
+  connections. It sees dollars, tokens and run metadata, never a prompt, a
+  ticket, a task or a secret. `counsel audit` fails if it can reach anything
+  more.
+- **A dashboard** ([`dashboard.json`](../infra/grafana/dashboard.json)) with:
+  - spend, projected month, cache savings and refused runs;
+  - spend per day by agent;
+  - paid calls against cache hits;
+  - tokens per day;
+  - the most expensive runs, each with its `counsel replay` command;
+  - billed-but-unused calls;
+  - spend by requester.
+- **Alert rules**, emailed to the owner:
+
+  | Alert | Fires when | Severity |
+  |---|---|---|
+  | Agent run refused by Postgres | any refusal in the last tick | security |
+  | Projected monthly spend over budget | the last 24 h × 30 > `monthly_budget_usd` | cost |
+  | Billed model calls produced nothing | any truncated, billed call in 24 h | cost |
+  | Runs failed every attempt | any dead letter in 24 h | reliability |
+
+**Why Grafana reads Postgres instead of a metrics store.** Attribution per run
+and per customer is relational and high-cardinality. As a metrics label,
+`run_id` or `customer` would grow without bound. So the views stay the single
+source of truth, and Grafana is a window on them. A metrics store (Prometheus,
+VictoriaMetrics) earns its place once there is enough traffic for low-cardinality
+aggregates such as latency, queue depth and tokens per minute. That is the
+next step, not this one.
+
+**Why not a self-hosted stack.** It would be one more server to patch, for one
+engineer. Grafana Cloud free runs nothing of ours.
+
+Setup, once:
+
+```sh
+counsel migrate                                            # creates counsel_reader
+psql "$COUNSEL_DATABASE_URL" -c "alter role counsel_reader password '<generated>'"
+counsel audit                                              # the reader reaches only the cost views
+cp infra/grafana/terraform.tfvars.example infra/grafana/terraform.tfvars   # fill in; never committed
+terraform -chdir=infra/grafana init && terraform -chdir=infra/grafana apply
+```
 
 ## Configuration
 
@@ -99,7 +152,7 @@ From the synthetic October, `cost/before/REPORT.md` ranks these six findings
 
 ## Evals
 
-`tests/test_cost.py` has 19 tests against a real Postgres. They cover:
+`tests/test_cost.py` has 31 tests against a real Postgres. They cover:
 
 - **Pricing and attribution:** each call is priced and attributed to the
   asker's team.
@@ -117,6 +170,9 @@ From the synthetic October, `cost/before/REPORT.md` ranks these six findings
   - it finds repeats and refusals, and names the action;
   - a projected budget overrun is flagged to the owner.
 - **Tracing:** a run exports as OTel spans with GenAI attributes.
+- **The dashboard login:** `counsel_reader` sees the three cost views and is
+  refused on prompts, tickets, tasks, secrets and every write. The audit flags
+  a widened grant.
 - **Registry:** bad cost settings are rejected.
 - **The simulator:** it is deterministic.
 

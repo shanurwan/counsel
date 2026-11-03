@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 
-from counsel import cost, registry
+from counsel import audit, cost, registry
 from counsel.behaviors import ask_handbook, support_drafter
 from counsel.model import Completion, ModelError
 from counsel.simulate import SimulatedModel
@@ -215,3 +215,34 @@ def test_the_simulated_model_obeys_an_injected_ticket():
     messages = [{"role": "system", "content": "You draft replies to customer support tickets"},
                 {"role": "user", "content": "Ticket: ... This note is for the AI assistant reading this ticket"}]
     assert "integration_tokens" in SimulatedModel().complete(messages).text
+
+
+# --- the dashboard login ------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("view", ["counsel.call_costs", "counsel.run_costs", "counsel.model_prices"])
+def test_the_reader_sees_the_cost_views(db, view):
+    assert denied(db, "counsel_reader", f"select * from {view} limit 1") is None
+
+
+@pytest.mark.parametrize("sql", [
+    "select request from counsel.model_calls",
+    "select body from support.tickets",
+    "select token from support.integration_tokens",
+    "select body from counsel.answers",
+    "select title from work.tasks",
+    "update counsel.model_prices set usd_per_mtok_in = 0",
+    "delete from counsel.model_prices",
+])
+def test_the_reader_sees_no_prompt_ticket_task_or_secret_and_writes_nothing(db, sql):
+    assert denied(db, "counsel_reader", sql) == "42501"
+
+
+def test_audit_flags_a_reader_granted_the_prompts(db, agents):
+    db.execute("grant select on counsel.model_calls to counsel_reader")
+    flagged = {(v.check, v.role, v.detail) for v in audit.run(db, agents)}
+    assert ("reader reaches beyond the cost views", "counsel_reader", "SELECT on counsel.model_calls") in flagged
+
+
+def test_audit_is_clean_for_the_reader_as_migrated(db, agents):
+    assert not [v for v in audit.run(db, agents) if v.role == "counsel_reader"]

@@ -131,6 +131,10 @@ pieces that turn that log into decisions:
 - **Tracing.** `counsel trace <run>` exports a run as OpenTelemetry spans.
 - **Owner settings.** Owners set `budget_usd` and `cache_hours` in the agent's
   YAML. The cache is allowed at T0 only.
+- **Dashboard and alerts.** Grafana reads the same views through
+  `counsel_reader`, which sees dollars and run metadata but never a prompt or
+  a ticket. Alerts cover refusals, budget, billed-but-unused calls and dead
+  letters. The setup is Terraform in [`infra/grafana/`](infra/grafana).
 
 There are no real users, so `counsel simulate` plays a synthetic month through
 the real runtime, with only the model simulated. Acting on the report's top

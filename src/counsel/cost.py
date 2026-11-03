@@ -28,6 +28,7 @@ MONTH_DAYS = 30
 CACHE_HOURS = 168  # what the report suggests; owners pick their own
 # One requester with at least this share, and twice a fair share, of an agent's spend is worth a look.
 OUTSIZED_SHARE = 0.25
+MIN_RUNS_FOR_SHARE = 20  # below this an agent's split by requester is noise
 
 
 @dataclass
@@ -58,6 +59,10 @@ def window(conn: psycopg.Connection) -> tuple[datetime, datetime]:
         return now - timedelta(days=MONTH_DAYS), now
     day = lambda t: t.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)  # noqa: E731
     return day(lo), day(hi) + timedelta(days=1)
+
+
+def plural(n: int, noun: str) -> str:
+    return f"{n:,} {noun}" + ("" if n == 1 else "s")
 
 
 def usd(x: float) -> str:
@@ -92,7 +97,7 @@ def build(conn: psycopg.Connection, agents: list[Agent], since: datetime, until:
         a = by_name.get(r["agent"])
         share = r["repeat_calls"] / r["paid_calls"]
         evidence = (f"{r['repeat_calls']} of {r['paid_calls']} paid calls ({share:.0%}) repeated a request "
-                    f"already answered in the window ({r['repeated_requests']} distinct requests), "
+                    f"already answered in the window ({plural(r['repeated_requests'], 'distinct request')}), "
                     f"{usd(r['repeat_usd'])}. Same prompt, same documents, so the same answer.")
         if a and a.cache_hours:
             action = (f"{a.name} already caches for {a.cache_hours} h; these repeats fell outside it. "
@@ -160,7 +165,8 @@ def build(conn: psycopg.Connection, agents: list[Agent], since: datetime, until:
     for agent, rs in shares.items():
         top = rs[0]
         share = top["share"] or 0
-        if top["requester"] == "schedule" or len(rs) < 3 or share < max(OUTSIZED_SHARE, 2 / len(rs)):
+        if (top["requester"] == "schedule" or len(rs) < 3 or sum(r["runs"] for r in rs) < MIN_RUNS_FOR_SHARE
+                or share < max(OUTSIZED_SHARE, 2 / len(rs))):
             continue
         findings.append(Finding(
             "cost", f"{top['requester']} drives {top['share']:.0%} of {agent} spend",

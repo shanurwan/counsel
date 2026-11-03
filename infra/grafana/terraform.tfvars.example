@@ -1,0 +1,7 @@
+grafana_url        = "https://<stack>.grafana.net"
+grafana_token      = "glsa_..."
+db_host            = "aws-0-eu-west-1.pooler.supabase.com:5432"
+db_user            = "counsel_reader.<project-ref>"
+reader_password    = "..."
+alert_email        = "you@example.com"
+monthly_budget_usd = 5

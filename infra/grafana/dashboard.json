@@ -1,0 +1,495 @@
+{
+  "uid": "counsel-cost",
+  "title": "Counsel: agent spend",
+  "tags": [
+    "counsel"
+  ],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "editable": true,
+  "refresh": "30m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Spend",
+      "description": "At the assumed list prices in counsel.model_prices.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select coalesce(sum(usd), 0) as spend from counsel.run_costs where $__timeFilter(started_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Projected month",
+      "description": "This range's daily rate, run for 30 days.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select coalesce(sum(usd), 0) * 30 / greatest(extract(epoch from ($__timeTo()::timestamptz - $__timeFrom()::timestamptz)) / 86400, 1) as month from counsel.run_costs where $__timeFilter(started_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Saved by cache",
+      "description": "What the cached answers would have cost (T0 agents with cache_hours).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select coalesce(sum(saved_usd), 0) as saved from counsel.run_costs where $__timeFilter(started_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Runs refused by Postgres",
+      "description": "An agent asked for something its role does not have. Nothing was exposed; counsel replay <run> shows what tried it.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select count(*) as refused from counsel.run_costs where status = 'denied' and $__timeFilter(started_at)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Spend per day, by agent",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select $__timeGroupAlias(started_at, '1d'), agent as metric, sum(usd) as value from counsel.run_costs where $__timeFilter(started_at) group by 1, 2 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "By agent",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 4,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select agent, count(*) as runs, sum(model_calls) as calls, sum(cache_hits) as cache_hits, round(sum(usd)::numeric, 4) as usd, round((percentile_cont(0.95) within group (order by usd))::numeric, 5) as p95_run_usd from counsel.run_costs where $__timeFilter(started_at) group by agent order by usd desc"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Paid calls and cache hits per day",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select $__timeGroupAlias(created_at, '1d'), count(*) filter (where cached_from is null and error is null) as \"paid\", count(*) filter (where cached_from is not null) as \"from cache\", count(*) filter (where error is not null) as \"failed\" from counsel.call_costs where $__timeFilter(created_at) group by 1 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Tokens per day",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select $__timeGroupAlias(started_at, '1d'), sum(input_tokens) as \"input\", sum(output_tokens) as \"output\" from counsel.run_costs where $__timeFilter(started_at) group by 1 order by 1"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Most expensive runs",
+      "description": "Copy the replay command to see every step and prompt of a run.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select started_at, agent, requester, status, model_calls, input_tokens, round(usd::numeric, 5) as usd, 'counsel replay ' || run_id as replay from counsel.run_costs where $__timeFilter(started_at) order by usd desc limit 15"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Billed but unused (truncated or failed calls)",
+      "description": "",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select c.created_at, r.agent, c.model, c.output_tokens, round(c.usd::numeric, 5) as usd, c.error from counsel.call_costs c join counsel.run_costs r using (run_id) where c.error is not null and $__timeFilter(c.created_at) order by c.created_at desc limit 20"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Spend by requester",
+      "description": "The customer behind a ticket or the asker's team behind a question.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select agent, requester, count(*) as runs, round(sum(usd)::numeric, 4) as usd from counsel.run_costs where $__timeFilter(started_at) group by 1, 2 order by usd desc limit 20"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}
