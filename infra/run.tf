@@ -136,8 +136,9 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.repository" = "assertion.repository"
     "attribute.ref"        = "assertion.ref"
   }
-  # Only pushes to main of this one repository can ever get a token.
-  attribute_condition = "assertion.sub == 'repo:shanurwan/counsel:ref:refs/heads/main' && assertion.repository_id == '${var.github_repository_id}'"
+  # Only pushes to main of this one repository can ever get a token. The repo
+  # uses GitHub's immutable subject, which pins owner and repository by id.
+  attribute_condition = "assertion.sub == 'repo:shanurwan@176239359/counsel@1442975741:ref:refs/heads/main' && assertion.repository_id == '${var.github_repository_id}'"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
