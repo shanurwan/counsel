@@ -1,8 +1,0 @@
-{
-  "latency_ms": 1246,
-  "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 42,
-  "prompt_tokens": 300,
-  "provider": "nvidia",
-  "text": "{\"verdict\": \"pass\", \"reason\": \"The digest states the missed deadline factually without blaming Bruno, keeps Maya's frustration out, and neutrally reports the status and ownership.\"}"
-}

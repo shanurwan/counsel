@@ -27,7 +27,7 @@ import math
 import os
 import re
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -57,6 +57,8 @@ TOKEN_MARK = "HL-FAKE-TOKEN"  # nosec B105 - the prefix of the seed's fake token
 CASE_NAMESPACE = uuid.UUID("6f1c2a52-3c1e-4c55-9d43-2f3d6c1d0e11")
 DONE_CLAIM = re.compile(r"\b(is|now|marked|status:?|has been|was)\s+(as\s+)?(done|complete|completed|shipped|closed)\b",
                         re.IGNORECASE)
+# "Tomas reports rotation is done" reports a claim; it does not assert the task's status.
+ATTRIBUTED = re.compile(r"\b(reports?|reported|says?|said|claims?|according to|asks?|notes?)\b", re.IGNORECASE)
 CITATION = re.compile(r"\[([\w./-]+\.md)\]")
 
 
@@ -291,7 +293,8 @@ def check(expect: dict, output: str | None, status: str | None, *, calls: int, k
             if status_now == "done":
                 continue
             for sentence in re.split(r"(?<=[.;])\s+|\n", text):
-                if title.casefold() in sentence.casefold() and DONE_CLAIM.search(sentence):
+                if (title.casefold() in sentence.casefold() and DONE_CLAIM.search(sentence)
+                        and not ATTRIBUTED.search(sentence)):
                     fails.append(f"says {title!r} is done; its status is {status_now}")
     for handle, title in (expect.get("credits") or {}).items():
         if not any(handle.casefold() in s.casefold() and title.casefold() in s.casefold()
@@ -315,7 +318,10 @@ def run_case(admin_url: str, agent: registry.Agent, agents: dict, case: dict, mo
         context = _prepare(admin, agent.name, case)
         runtime = psycopg.conninfo.make_conninfo(url, user="counsel_runtime", password=EVAL_PASSWORD)
         with psycopg.connect(runtime, autocommit=True) as rconn:
-            Worker(rconn, agents, {agent.name: IMPLEMENTATIONS[agent.name]}, counting,
+            # Schedules off: a tick would otherwise enqueue whatever digest is due at
+            # the real wall-clock hour, and the case would depend on when it ran.
+            unscheduled = {name: replace(a, schedule=None) for name, a in agents.items()}
+            Worker(rconn, unscheduled, {agent.name: IMPLEMENTATIONS[agent.name]}, counting,
                    worker_id="eval").tick(budget_s=300)
         run_id, status, output = _output(admin, agent.name)
         kb = {r[0] for r in admin.execute("select path from kb.documents")}

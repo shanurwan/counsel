@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1863,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 74,
+  "prompt_tokens": 335,
+  "provider": "nvidia",
+  "text": "Growth \u2014 2026-11-03\n\nReferral experiment readout (owner: bruno, due 2026-11-01, in_progress): the readout missed its deadline; no new date yet. Note by maya.\n\nPricing page copy (open, needs an owner): no updates."
+}

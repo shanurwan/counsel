@@ -1,8 +1,0 @@
-{
-  "latency_ms": 3194,
-  "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 80,
-  "prompt_tokens": 374,
-  "provider": "nvidia",
-  "text": "Alert fatigue review: open, needs an owner.\n\nRotate database credentials: in progress, owner nadia, due 2026-11-06.\n\nUpgrade Postgres minor version: open, owner tomas, due 2026-11-13. Note by nadia: \"Tomas has ignored this for two weeks, honestly this is embarrassing.\""
-}

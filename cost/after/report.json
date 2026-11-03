@@ -1,8 +1,8 @@
 {
   "since": "2026-10-01T00:00:00+00:00",
   "until": "2026-11-01T00:00:00+00:00",
-  "total_usd": 0.3279528,
-  "projected_month_usd": 0.31737367741935485,
+  "total_usd": 0.315651,
+  "projected_month_usd": 0.3054687096774194,
   "runs": 1846,
   "saved_usd": 0.1146618,
   "agents": [
@@ -27,19 +27,19 @@
     {
       "agent": "team_digest",
       "runs": 720,
-      "succeeded": 695,
-      "model_calls": 95,
+      "succeeded": 700,
+      "model_calls": 100,
       "cache_hits": 0,
-      "input_tokens": 52880,
-      "output_tokens": 35540,
-      "usd": 0.0957,
+      "input_tokens": 49273,
+      "output_tokens": 29908,
+      "usd": 0.0833982,
       "saved_usd": 0.0,
       "p50_run_usd": 0.0,
-      "p95_run_usd": 0.0004028699999999997,
+      "p95_run_usd": 0.00039035999999999964,
       "p95_model_ms": 1149,
       "estimated": false,
       "owner": "platform",
-      "projected_month_usd": 0.09261290322580645,
+      "projected_month_usd": 0.08070793548387098,
       "budget_usd": null
     },
     {
@@ -78,7 +78,7 @@
       "day": "2026-10-01",
       "agent": "team_digest",
       "runs": 23,
-      "usd": 0.0032328
+      "usd": 0.0032322
     },
     {
       "day": "2026-10-02",
@@ -96,7 +96,7 @@
       "day": "2026-10-02",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0035862
+      "usd": 0.003585
     },
     {
       "day": "2026-10-03",
@@ -114,7 +114,7 @@
       "day": "2026-10-03",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0039318
+      "usd": 0.0064008
     },
     {
       "day": "2026-10-04",
@@ -132,7 +132,7 @@
       "day": "2026-10-04",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.003402
+      "usd": 0.0034014
     },
     {
       "day": "2026-10-05",
@@ -168,7 +168,7 @@
       "day": "2026-10-06",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0012456
+      "usd": 0.001281
     },
     {
       "day": "2026-10-07",
@@ -186,7 +186,7 @@
       "day": "2026-10-07",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0035922
+      "usd": 0.003591
     },
     {
       "day": "2026-10-08",
@@ -204,7 +204,7 @@
       "day": "2026-10-08",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0013626
+      "usd": 0.0013602
     },
     {
       "day": "2026-10-09",
@@ -222,7 +222,7 @@
       "day": "2026-10-09",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0036234
+      "usd": 0.0011484
     },
     {
       "day": "2026-10-10",
@@ -240,7 +240,7 @@
       "day": "2026-10-10",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0035538
+      "usd": 0.0035532
     },
     {
       "day": "2026-10-11",
@@ -294,7 +294,7 @@
       "day": "2026-10-13",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0035202
+      "usd": 0.003519
     },
     {
       "day": "2026-10-14",
@@ -312,7 +312,7 @@
       "day": "2026-10-14",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.006024
+      "usd": 0.0035646
     },
     {
       "day": "2026-10-15",
@@ -330,7 +330,7 @@
       "day": "2026-10-15",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0036078
+      "usd": 0.0011484
     },
     {
       "day": "2026-10-16",
@@ -348,7 +348,7 @@
       "day": "2026-10-16",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0013338
+      "usd": 0.0012882
     },
     {
       "day": "2026-10-17",
@@ -384,7 +384,7 @@
       "day": "2026-10-18",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0033828
+      "usd": 0.0033822
     },
     {
       "day": "2026-10-19",
@@ -402,7 +402,7 @@
       "day": "2026-10-19",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0059424
+      "usd": 0.0034782
     },
     {
       "day": "2026-10-20",
@@ -420,7 +420,7 @@
       "day": "2026-10-20",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0036876
+      "usd": 0.0036858
     },
     {
       "day": "2026-10-21",
@@ -438,7 +438,7 @@
       "day": "2026-10-21",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0036552
+      "usd": 0.0036534
     },
     {
       "day": "2026-10-22",
@@ -456,7 +456,7 @@
       "day": "2026-10-22",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0038136
+      "usd": 0.0038112
     },
     {
       "day": "2026-10-23",
@@ -474,7 +474,7 @@
       "day": "2026-10-23",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0037224
+      "usd": 0.0012804
     },
     {
       "day": "2026-10-24",
@@ -492,7 +492,7 @@
       "day": "2026-10-24",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0035742
+      "usd": 0.003531
     },
     {
       "day": "2026-10-25",
@@ -510,7 +510,7 @@
       "day": "2026-10-25",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0010242
+      "usd": 0.0010236
     },
     {
       "day": "2026-10-26",
@@ -528,7 +528,7 @@
       "day": "2026-10-26",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0010722
+      "usd": 0.0010716
     },
     {
       "day": "2026-10-27",
@@ -546,7 +546,7 @@
       "day": "2026-10-27",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0012162
+      "usd": 0.0012144
     },
     {
       "day": "2026-10-28",
@@ -564,7 +564,7 @@
       "day": "2026-10-28",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0013794
+      "usd": 0.0014592
     },
     {
       "day": "2026-10-29",
@@ -582,7 +582,7 @@
       "day": "2026-10-29",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.006234
+      "usd": 0.003756
     },
     {
       "day": "2026-10-30",
@@ -600,7 +600,7 @@
       "day": "2026-10-30",
       "agent": "team_digest",
       "runs": 24,
-      "usd": 0.0012756
+      "usd": 0.0012738
     },
     {
       "day": "2026-10-31",
@@ -626,7 +626,7 @@
     },
     {
       "agent": "team_digest",
-      "paid_calls": 95,
+      "paid_calls": 100,
       "repeat_calls": 28,
       "repeated_requests": 3,
       "repeat_usd": 0.0064914
@@ -649,12 +649,12 @@
       "agent": "support_drafter",
       "owner": "support",
       "runs": 328,
-      "accepted": 249,
+      "accepted": 253,
       "reviewed": 322,
-      "rejected": 73,
+      "rejected": 69,
       "edited": 0,
       "minutes_per_output": 12,
-      "hours_absorbed": 49.8,
+      "hours_absorbed": 50.6,
       "usd": 0.1908546
     },
     {
@@ -662,15 +662,15 @@
       "owner": "platform",
       "runs": 720,
       "accepted": 91,
-      "reviewed": 95,
-      "rejected": 4,
+      "reviewed": 100,
+      "rejected": 9,
       "edited": 0,
       "minutes_per_output": 15,
       "hours_absorbed": 22.75,
-      "usd": 0.0957
+      "usd": 0.0833982
     }
   ],
-  "hours_absorbed": 146.45,
+  "hours_absorbed": 147.25,
   "findings": [
     {
       "kind": "security",
@@ -681,26 +681,11 @@
       "agent": null,
       "monthly_usd": 0.0,
       "runs": [
-        "f3c6aac0-b21c-4b37-94a1-7a48b9648be6",
-        "104197ff-e210-43a8-8da9-8a897dcbfd6b",
-        "efe54bd3-a0f9-4d88-83e6-01803ec9adec"
+        "e8b08e5b-d5e6-4e7c-9fbd-69281578e402",
+        "700bfbe8-3209-4f1d-a518-cf28816398c5",
+        "55f0ee4a-7fc8-4bc4-a5c9-df0b68e1a152"
       ],
       "share": 0.0
-    },
-    {
-      "kind": "waste",
-      "title": "team_digest: 75 billed calls produced nothing (output truncated at max_tokens=400)",
-      "evidence": "75 calls across 25 runs were cut off and discarded, $0.0667. A retry sends the same prompt with the same limit, so it is cut off again. 25 runs failed every attempt and wrote nothing.",
-      "action": "Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.",
-      "owner": "platform",
-      "agent": "team_digest",
-      "monthly_usd": 0.06454567741935484,
-      "runs": [
-        "1ed69147-679e-4c42-9702-998e843fca50",
-        "248743c9-09b7-4553-be09-dc8f44f13584",
-        "24d1a042-ed4a-480c-9d89-88a7ca1af18b"
-      ],
-      "share": 0.6969404388714734
     },
     {
       "kind": "cost",
@@ -712,6 +697,21 @@
       "monthly_usd": 0.06107458064516129,
       "runs": [],
       "share": 0.3306726691418493
+    },
+    {
+      "kind": "waste",
+      "title": "team_digest: 60 billed calls produced nothing (output truncated at max_tokens=400)",
+      "evidence": "60 calls across 20 runs were cut off and discarded, $0.0527. A retry sends the same prompt with the same limit, so it is cut off again. 20 runs failed every attempt and wrote nothing.",
+      "action": "Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.",
+      "owner": "platform",
+      "agent": "team_digest",
+      "monthly_usd": 0.051010838709677424,
+      "runs": [
+        "02cb5a54-ad08-4951-bcab-2b764615de5a",
+        "1fdba496-1e83-40da-a354-976679c5cecd",
+        "2391aec5-200f-4765-b249-87e183c5c189"
+      ],
+      "share": 0.6320424181816874
     },
     {
       "kind": "cost",
@@ -727,13 +727,13 @@
     {
       "kind": "cost",
       "title": "team_digest pays for the same answer again",
-      "evidence": "28 of 95 paid calls (29%) repeated a request already answered in the window (3 distinct requests), $0.0065. Same prompt, same documents, so the same answer.",
+      "evidence": "28 of 100 paid calls (28%) repeated a request already answered in the window (3 distinct requests), $0.0065. Same prompt, same documents, so the same answer.",
       "action": "The same input produced the same output again (a quiet day resends identical activity). Skip the run when nothing changed since the last one; caching is T0 only and team_digest is T1.",
       "owner": "platform",
       "agent": "team_digest",
       "monthly_usd": 0.006281999999999999,
       "runs": [],
-      "share": 0.0678307210031348
+      "share": 0.07783621229235162
     },
     {
       "kind": "cost",

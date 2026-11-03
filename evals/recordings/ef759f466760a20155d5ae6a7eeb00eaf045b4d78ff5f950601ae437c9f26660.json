@@ -1,8 +1,0 @@
-{
-  "latency_ms": 1417,
-  "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 48,
-  "prompt_tokens": 423,
-  "provider": "nvidia",
-  "text": "- Alert fatigue review: needs an owner; no updates.\n- Rotate database credentials (nadia): staging rotated; production rotation scheduled for Thursday.\n- Upgrade Postgres minor version (tomas): waiting on maintenance window approval."
-}

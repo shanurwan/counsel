@@ -1,8 +1,8 @@
 {
-  "latency_ms": 1756,
+  "latency_ms": 2133,
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 47,
+  "output_tokens": 34,
   "prompt_tokens": 250,
   "provider": "nvidia",
-  "text": "Support \u2014 daily digest\n\n- Macro for refund requests (owner: ines) \u2014 open, due 2026-11-10. No updates today.\n\nNo blocked items. No items waiting on others."
+  "text": "Support \u2014 daily digest\n\n- Macro for refund requests (owner: ines) \u2014 open, no updates today.\n\nNo blocked items. No items waiting on others."
 }

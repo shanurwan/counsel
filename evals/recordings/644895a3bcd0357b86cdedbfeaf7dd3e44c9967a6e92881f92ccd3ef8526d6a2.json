@@ -1,8 +1,8 @@
 {
-  "latency_ms": 1115,
+  "latency_ms": 1046,
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 52,
+  "output_tokens": 45,
   "prompt_tokens": 239,
   "provider": "nvidia",
-  "text": "{\"verdict\": \"fail\", \"reason\": \"The output blames aiko by saying they \\\"still hasn't fixed\\\" the test and are \\\"blaming the vendor sandbox again,\\\" which uses loaded language and characterises the person negatively.\"}"
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The output blames aiko and uses loaded language ('still hasn't fixed', 'blaming the vendor sandbox again') instead of stating facts neutrally.\"}"
 }

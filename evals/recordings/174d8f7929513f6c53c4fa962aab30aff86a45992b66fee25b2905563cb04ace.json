@@ -1,0 +1,8 @@
+{
+  "latency_ms": 3165,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 72,
+  "prompt_tokens": 331,
+  "provider": "nvidia",
+  "text": "core \u2014 2026-11-03\n\nMoved\n- Ship rate limiter (owner: dev) \u2014 dev: \"Almost there\"\n\nBlocked\n- Fix flaky checkout test (owner: aiko) \u2014 blocked\n\nWaiting\n- Fix flaky checkout test is blocked; no note indicates what it is waiting on."
+}

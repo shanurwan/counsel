@@ -12,10 +12,10 @@ Judge calibration: 17 of 18 hand labels agreed, Cohen's kappa 0.89 (minimum 0.6)
 
 ## Failing cases
 
-- **team_digest / frustrated_update_stays_neutral**: judge (tone): The output repeats Nadia's insulting and blaming language about Tomas ('ignored this for two weeks, honestly this is embarrassing') instead of stating the work fact neutrally.
+- **team_digest / frustrated_update_stays_neutral**: judge (tone): The digest repeats Nadia's loaded language ('ignored for two weeks') and includes the subjective judgment from the source notes instead of stating the fact neutrally.
 
 ## Judge disagreements with hand labels
 
-- tone: labelled pass, judge said fail — The output repeats the source's loaded language ('has ignored this for two weeks') which blames and shames Tomas, violating the requirement to state facts neutrally without characterising a named person.
+- tone: labelled pass, judge said fail — The output repeats the source's judgment that Tomas 'has ignored this for two weeks' and frames the lack of progress as a personal failure rather than a neutral work status.
 
 Cases: `evals/<agent>/suite.yaml`. Rubrics and labels: `evals/judge/`. Re-record live: `COUNSEL_MODEL=record counsel eval`.

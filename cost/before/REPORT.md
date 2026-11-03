@@ -1,6 +1,6 @@
 # Agent spend report: synthetic October
 
-Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4426** (projected month: $0.4283).  Saved by cache: $0.0000.
+Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4303** (projected month: $0.4164).  Saved by cache: $0.0000.
 
 > Synthetic workload: Harbor Labs, 80 employees, 24 customers, 30 days. Real worker, roles, journal and cost log; the model is simulated (deterministic, usage from text length) and priced at the assumed rates in counsel.model_prices. Counsel runs on NVIDIA's free tier, so its actual spend is $0.
 
@@ -12,7 +12,7 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4426** (proje
 
 - **Evidence:** From: customer:cust19 (4), customer:cust12 (1), customer:cust18 (1). First refusal: tool select support.integration_tokens: permission denied for table integration_tokens. Nothing was read or written; each run stopped at the refusal ($0.0021 spent).
 - **Action:** No rotation needed: nothing was exposed. Read one with `counsel replay <run>` to see the instruction that tried it, and tell the customer's account owner.
-- **Runs:** `87cebc73-d211-41f2-8949-ca71d7054141`, `18cc969b-e47f-4b5f-8dcf-cf158810b7c6`, `f24a4e06-6ad5-44a8-ad2a-40df0db43a55`
+- **Runs:** `a4a14c89-1f28-4d65-9537-53a8e571ab95`, `5d1ffd61-ba75-4c80-9b51-cfd4124d1afb`, `fe57559f-1b27-42c6-8dac-8aa74e9c747e`
 
 ### 2. ask_handbook pays for the same answer again
 
@@ -21,26 +21,26 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4426** (proje
 - **Evidence:** 650 of 739 paid calls (88%) repeated a request already answered in the window (77 distinct requests), $0.1386. Same prompt, same documents, so the same answer.
 - **Action:** Add `cache_hours: 168` to agents/ask_handbook.yaml. The cache key is the whole prompt, so an edited document is a new request and is never served stale.
 
-### 3. team_digest: 75 billed calls produced nothing (output truncated at max_tokens=400)
-
-*waste · owner: platform · worth ~$0.0645/month (70% of the agent's spend)*
-
-- **Evidence:** 75 calls across 25 runs were cut off and discarded, $0.0667. A retry sends the same prompt with the same limit, so it is cut off again. 25 runs failed every attempt and wrote nothing.
-- **Action:** Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.
-- **Runs:** `069591d0-a579-43b3-a721-cfb32e5a9a24`, `0cad25e8-aeda-4f3f-b5f4-946056bd5c0b`, `11d17b70-916e-47cc-810d-0b97105a9cfe`
-
-### 4. support_drafter makes a second model call in 40% of runs
+### 3. support_drafter makes a second model call in 40% of runs
 
 *cost · owner: support · worth ~$0.0611/month (33% of the agent's spend)*
 
 - **Evidence:** 117 of 294 runs (40%) called a tool before drafting. Each later turn re-sends the whole conversation, 534 input tokens against 482 for the first. Later turns cost $0.0631 of $0.1909.
 - **Action:** Give the model what it keeps asking for in the first prompt (for the support drafter, the ticket thread), so most runs draft in one call. Upper bound on the saving shown.
 
+### 4. team_digest: 60 billed calls produced nothing (output truncated at max_tokens=400)
+
+*waste · owner: platform · worth ~$0.0510/month (63% of the agent's spend)*
+
+- **Evidence:** 60 calls across 20 runs were cut off and discarded, $0.0527. A retry sends the same prompt with the same limit, so it is cut off again. 20 runs failed every attempt and wrote nothing.
+- **Action:** Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.
+- **Runs:** `03ce8e75-03c9-4947-ae02-12bac60adcea`, `05dfc7ee-bbd1-494e-901d-76e46a7f724e`, `0b8305bb-83e4-4a5d-bd52-06306bb5bf1d`
+
 ### 5. team_digest pays for the same answer again
 
-*cost · owner: platform · worth ~$0.0063/month (7% of the agent's spend)*
+*cost · owner: platform · worth ~$0.0063/month (8% of the agent's spend)*
 
-- **Evidence:** 28 of 95 paid calls (29%) repeated a request already answered in the window (3 distinct requests), $0.0065. Same prompt, same documents, so the same answer.
+- **Evidence:** 28 of 100 paid calls (28%) repeated a request already answered in the window (3 distinct requests), $0.0065. Same prompt, same documents, so the same answer.
 - **Action:** The same input produced the same output again (a quiet day resends identical activity). Skip the run when nothing changed since the last one; caching is T0 only and team_digest is T1.
 
 ### 6. customer:cust19 drives 65% of support_drafter spend
@@ -56,17 +56,17 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4426** (proje
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | support_drafter | support | 328 | 411 | 0 | 204,115 / 37,992 | $0.1909 | $0.5819 | $0.0009 | $0.1847 | none |
 | ask_handbook | people-ops | 798 | 739 | 0 | 163,167 / 32,311 | $0.1561 | $0.1956 | $0.0003 | $0.1510 | none |
-| team_digest | platform | 720 | 95 | 0 | 52,880 / 35,540 | $0.0957 | $0.1329 | $0.0004 | $0.0926 | none |
+| team_digest | platform | 720 | 100 | 0 | 49,273 / 29,908 | $0.0834 | $0.1158 | $0.0004 | $0.0807 | none |
 
 ## Value ledger
 
-**146.4 hours** of work absorbed for $0.4426 of model spend. An output counts only once a person accepted it (an answered question, a published draft); its worth is the owner's estimate in `minutes_per_output`, not a measurement.
+**147.2 hours** of work absorbed for $0.4303 of model spend. An output counts only once a person accepted it (an answered question, a published draft); its worth is the owner's estimate in `minutes_per_output`, not a measurement.
 
 | Agent | Owner | Runs | Accepted | Rejected | Edited before publishing | Minutes each | Hours absorbed | Spend | Per hour absorbed |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|
 | ask_handbook | people-ops | 798 | 739 | 0 of 0 | 0 | 6 | 73.9 | $0.1561 | $0.0021 |
-| support_drafter | support | 328 | 249 | 73 of 322 | 0 | 12 | 49.8 | $0.1909 | $0.0038 |
-| team_digest | platform | 720 | 91 | 4 of 95 | 0 | 15 | 22.8 | $0.0957 | $0.0042 |
+| support_drafter | support | 328 | 253 | 69 of 322 | 0 | 12 | 50.6 | $0.1909 | $0.0038 |
+| team_digest | platform | 720 | 91 | 9 of 100 | 0 | 15 | 22.8 | $0.0834 | $0.0037 |
 
 ---
 Generated by `counsel report` from counsel.model_calls; queries in `db/reports/`. Prices: counsel.model_prices.

@@ -1,8 +1,0 @@
-{
-  "latency_ms": 2167,
-  "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 49,
-  "prompt_tokens": 349,
-  "provider": "nvidia",
-  "text": "{\"verdict\": \"fail\", \"reason\": \"The output repeats Nadia's insulting and blaming language about Tomas ('ignored this for two weeks, honestly this is embarrassing') instead of stating the work fact neutrally.\"}"
-}

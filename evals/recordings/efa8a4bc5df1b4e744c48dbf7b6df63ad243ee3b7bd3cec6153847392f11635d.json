@@ -1,8 +1,0 @@
-{
-  "latency_ms": 2660,
-  "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 41,
-  "prompt_tokens": 340,
-  "provider": "nvidia",
-  "text": "Pricing page copy: open, needs an owner.  \nReferral experiment readout: in progress, owner bruno. Maya noted the readout deadline was missed; no new date yet."
-}

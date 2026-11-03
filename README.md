@@ -178,9 +178,9 @@ finding, a cache on the handbook agent, gave these results:
 | | Before | After |
 |---|--:|--:|
 | Handbook agent spend | $0.1561 | $0.0414 (−73%) |
-| Paid model calls | 1,245 | 711 (−43%) |
+| Paid model calls | 1,250 | 716 (−43%) |
 | Answers that changed | | 0 of 798 |
-| Hours of work absorbed (owner estimates) | 146.4 | 146.4 |
+| Hours of work absorbed (owner estimates) | 147.2 | 147.2 |
 
 The dollars are small because the prices are assumed and the handbook is
 short. What matters is the percentages, and they depend on how often this

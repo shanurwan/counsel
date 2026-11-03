@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1663,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 46,
+  "prompt_tokens": 333,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The digest states the readout missed its deadline and has no new date without blaming Bruno, and it notes the pricing page copy needs an owner neutrally.\"}"
+}

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 2652,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 70,
+  "prompt_tokens": 333,
+  "provider": "nvidia",
+  "text": "Growth \u2014 2026-11-03\n\nReferral experiment readout (owner: bruno, in_progress, due 2026-11-01): maya pulled the cohort export so the readout can proceed.\n\nPricing page copy (open, no owner): needs an owner."
+}

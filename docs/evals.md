@@ -94,6 +94,17 @@ One known failure remains. The digest sometimes quotes Nadia's frustrated note
 verbatim. It is reported, not hidden, and the gate tolerates exactly one such
 failure at this suite size.
 
+**What CI caught about the gate itself.** The first CI run failed, though
+the same recordings passed locally. Two things made a prompt depend on where
+and when it ran:
+- **Timezone.** The digest rendered note times in the database session's
+  timezone. It now writes them in UTC.
+- **Wall clock.** Each eval tick also fired whatever digest the real clock
+  made due. Evals now run with schedules off.
+
+Both fixes have tests. A replay is now identical in any timezone and at any
+hour.
+
 ## Recorded, live and repeated
 
 - **CI** replays recorded Nemotron responses from `evals/recordings/`. It needs

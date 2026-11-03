@@ -52,9 +52,9 @@ work people didn't have to do:
   an agent's drafts, the report raises a quality finding. The agent's text is
   kept as written beside what was published, so heavy editing shows up too.
 
-In the synthetic October: 146.4 hours absorbed for $0.44. The handbook agent
-answered 739 questions (6 minutes each). Support published 249 drafts and
-rejected 73 (12 minutes each). Digests: 91 published (15 minutes each).
+In the synthetic October: 147.2 hours absorbed for $0.43. The handbook agent
+answered 739 questions (6 minutes each). Support published 253 drafts and
+rejected 69 (12 minutes each). Digests: 91 published (15 minutes each).
 Reviewers there are simulated:
 - they reject drafts the docs didn't cover, and drafts flagged for offering
   an action;
@@ -173,8 +173,8 @@ From the synthetic October, `cost/before/REPORT.md` ranks these six findings
 |---|---|---|---|
 | 1 | 6 runs asked for `support.integration_tokens` and Postgres refused | security | Nothing exposed, nothing to rotate. Replay one and tell the account owner. |
 | 2 | ask_handbook pays for the same answer again (88% of paid calls repeat) | people-ops | Add `cache_hours: 168` |
-| 3 | team_digest: 75 billed calls cut off at `max_tokens=400` and retried unchanged | platform | Raise `max_tokens`; don't retry a truncation as-is |
-| 4 | support_drafter makes a second model call in 40% of runs | support | Put the ticket thread in the first prompt |
+| 3 | support_drafter makes a second model call in 40% of runs | support | Put the ticket thread in the first prompt |
+| 4 | team_digest: 60 billed calls cut off at `max_tokens=400` and retried unchanged | platform | Raise `max_tokens`; don't retry a truncation as-is |
 | 5 | team_digest resends identical activity on quiet days | platform | Skip the run when nothing changed |
 | 6 | One customer drives 65% of support_drafter spend | support | Look for the docs gap behind their tickets |
 
@@ -216,9 +216,9 @@ Both arms use the same events, the same seed and the same simulated model.
 
 | | Before | After | Change |
 |---|--:|--:|--:|
-| Total spend | $0.4426 | $0.3280 | −26% |
+| Total spend | $0.4303 | $0.3157 | −27% |
 | ask_handbook spend | $0.1561 | $0.0414 | −73% |
-| Paid model calls | 1,245 | 711 | −43% |
+| Paid model calls | 1,250 | 716 | −43% |
 | Answers served from cache | 0 | 534 | |
 | Answers that changed | | 0 of 798 | |
 

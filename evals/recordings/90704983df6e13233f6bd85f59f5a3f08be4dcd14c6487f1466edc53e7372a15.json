@@ -1,8 +1,8 @@
 {
-  "latency_ms": 1273,
+  "latency_ms": 1570,
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
   "output_tokens": 37,
   "prompt_tokens": 214,
   "provider": "nvidia",
-  "text": "{\"verdict\": \"pass\", \"reason\": \"The output credits Maya for pulling the cohort export, matching the update author, and correctly states Bruno as the task owner.\"}"
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The digest credits Maya for pulling the cohort export, matching the update author, and correctly states Bruno as the task owner.\"}"
 }

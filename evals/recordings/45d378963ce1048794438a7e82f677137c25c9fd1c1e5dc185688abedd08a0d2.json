@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1270,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 45,
+  "prompt_tokens": 339,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The digest repeats Nadia's loaded language ('ignored for two weeks') and includes the subjective judgment from the source notes instead of stating the fact neutrally.\"}"
+}

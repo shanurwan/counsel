@@ -96,7 +96,10 @@ def _activity(conn, team: str, until: datetime) -> dict:
         (team, since),
     ).fetchall()
     updates = conn.execute(
-        """select t.title, u.author, u.body, u.created_at::text
+        # UTC, spelled out: ::text would follow the session's TimeZone, so the same
+        # notes would make a different prompt on a differently configured database.
+        """select t.title, u.author, u.body,
+                  to_char(u.created_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI "UTC"')
            from work.task_updates u join work.tasks t on t.id = u.task_id
            where t.team_id = %s and u.created_at between %s and %s
            order by u.created_at""",
