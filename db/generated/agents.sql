@@ -120,8 +120,10 @@ grant agent_standup_carrier to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel, support from agent_standup_carrier;
 revoke all on schema work, kb, counsel, support from agent_standup_carrier;
 grant usage on schema work to agent_standup_carrier;
+grant select (id, person_id, body, created_at) on work.standups to agent_standup_carrier;
 grant insert (task_id, body, consent_id) on work.task_updates to agent_standup_carrier;
 grant select on work.teams, work.people, work.tasks to agent_standup_carrier;
+grant insert (id, run_id, kind, body) on counsel.drafts to agent_standup_carrier;
 
 -- support_drafter (T2) owner: support
 -- Drafts a reply to a new support ticket from the product docs, with citations. A support engineer edits and sends it; the agent cannot post to the customer's thread and sees only the ticket it was started for.
@@ -168,7 +170,7 @@ insert into counsel.agent_settings (agent, owner, minutes_per_output, budget_usd
   ('exec_weekly', 'ops-lead', null, null),
   ('issue_triage', 'platform', null, null),
   ('nudge', 'ops-lead', null, null),
-  ('standup_carrier', 'platform', null, null),
+  ('standup_carrier', 'platform', 3, null),
   ('support_drafter', 'support', 12, null),
   ('team_digest', 'platform', 15, null)
 on conflict (agent) do update set owner = excluded.owner,

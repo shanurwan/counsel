@@ -1,5 +1,5 @@
 {
-  "latency_ms": 1880,
+  "latency_ms": 1174,
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
   "output_tokens": 40,
   "prompt_tokens": 250,

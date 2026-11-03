@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1205,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 26,
+  "prompt_tokens": 259,
+  "provider": "nvidia",
+  "text": "{\"notes\": [{\"task\": \"Ship rate limiter\", \"text\": \"Ship rate limiter is going well.\"}]}"
+}

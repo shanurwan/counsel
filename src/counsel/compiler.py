@@ -43,6 +43,8 @@ CAPABILITY_SQL: dict[str, list[str]] = {
     ],
     "carry_updates": [
         "grant usage on schema work to {role};",
+        # Row-level security limits this to the one standup the run was started for.
+        "grant select (id, person_id, body, created_at) on work.standups to {role};",
         "grant insert (task_id, body, consent_id) on work.task_updates to {role};",
     ],
     "send_messages": [

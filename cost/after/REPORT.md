@@ -12,7 +12,7 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.3157** (proje
 
 - **Evidence:** From: customer:cust19 (4), customer:cust12 (1), customer:cust18 (1). First refusal: tool select support.integration_tokens: permission denied for table integration_tokens. Nothing was read or written; each run stopped at the refusal ($0.0021 spent).
 - **Action:** No rotation needed: nothing was exposed. Read one with `counsel replay <run>` to see the instruction that tried it, and tell the customer's account owner.
-- **Runs:** `e8b08e5b-d5e6-4e7c-9fbd-69281578e402`, `700bfbe8-3209-4f1d-a518-cf28816398c5`, `55f0ee4a-7fc8-4bc4-a5c9-df0b68e1a152`
+- **Runs:** `2ed134d4-3d03-4ace-a86c-930b091d8f07`, `5aa620c5-d0f7-4f07-be54-596e050d9f7c`, `8cc869c2-7636-45da-9ec5-b087b77a5c7a`
 
 ### 2. support_drafter makes a second model call in 40% of runs
 
@@ -27,7 +27,7 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.3157** (proje
 
 - **Evidence:** 60 calls across 20 runs were cut off and discarded, $0.0527. A retry sends the same prompt with the same limit, so it is cut off again. 20 runs failed every attempt and wrote nothing.
 - **Action:** Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.
-- **Runs:** `02cb5a54-ad08-4951-bcab-2b764615de5a`, `1fdba496-1e83-40da-a354-976679c5cecd`, `2391aec5-200f-4765-b249-87e183c5c189`
+- **Runs:** `2e33a3c9-9ab3-4287-a515-f03580a279bd`, `36bef9d3-cc25-4bac-865f-72cac554cdc4`, `4b06a587-b29d-4886-80d6-6b15a1bf46fc`
 
 ### 4. ask_handbook pays for the same answer again
 

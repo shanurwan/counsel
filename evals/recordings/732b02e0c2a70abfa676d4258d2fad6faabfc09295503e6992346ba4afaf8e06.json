@@ -1,0 +1,8 @@
+{
+  "latency_ms": 868,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 39,
+  "prompt_tokens": 236,
+  "provider": "nvidia",
+  "text": "{\"notes\": [{\"task\": \"Fix flaky checkout test\", \"text\": \"The flaky checkout test is done from my side, the race in setup is fixed.\"}]}"
+}

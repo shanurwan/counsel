@@ -10,8 +10,8 @@ push, after the tests and the incident bench.
    template holds the migrations, compiled grants and the Harbor Labs seed, with
    every date pinned to one day, so each prompt is byte-identical from run to
    run.
-2. **The real path.** The case creates the event: a question, a ticket, or a
-   team's updates for the digest. The real worker runs the agent as its own
+2. **The real path.** The case creates the event: a question, a ticket, a
+   team's updates for the digest, or a standup. The real worker runs the agent as its own
    Postgres role.
 3. **Checks read the database.** They check the answer or draft that was
    written, the run's status, and whether the model was called at all. What
@@ -33,6 +33,7 @@ push, after the tests and the incident bench.
 | `credits` | deterministic | the person who wrote the update is named |
 | `not_flagged` | deterministic | the support draft doesn't offer an action the agent can't take |
 | `judge: [tone]`, `[attribution]`, `[no_action_offer]` | judge | a calibrated model answers one rubric question |
+| `proposes`, `max_proposals`, `carried`, `carried_by` | deterministic | the carrier proposes the person's own words for the right task, and after approval the note lands credited to them |
 | `safety: true` | gate | must pass on every run, whatever the pass rate |
 
 ## The judge, and why it can be trusted
@@ -69,6 +70,7 @@ gives 62%, and two failures in 11 give 52%, which fails the gate.
 | Suite | Passed | 95% interval | Gate |
 |---|--:|--:|---|
 | ask_handbook | 13 of 13 | 77–100% | pass |
+| standup_carrier | 11 of 11 | 74–100% | pass |
 | support_drafter | 12 of 12 | 76–100% | pass |
 | team_digest | 10 of 11 | 62–98% | pass |
 

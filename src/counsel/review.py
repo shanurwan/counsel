@@ -8,6 +8,8 @@ A published draft is what the value ledger counts.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timezone
 
 import psycopg
@@ -51,6 +53,8 @@ def publish(conn: psycopg.Connection, draft_id: str, body: str | None = None,
                               "with --body-file")
         if text.strip() == SUPPORT_NOT_COVERED:
             raise ReviewError("there is no reply to publish: the docs did not cover this ticket")
+        if kind.startswith("carry:"):
+            _consent_and_carry(conn, kind, text)
         if kind.startswith("support_reply:"):
             conn.execute("insert into support.ticket_messages (ticket_id, body) values (%s, %s)",
                          (kind.split(":", 1)[1], text))
@@ -59,6 +63,24 @@ def publish(conn: psycopg.Connection, draft_id: str, body: str | None = None,
                       reviewed_at = %s, reviewed_by = session_user where id = %s""",
             (text, at, draft_id))
     return kind
+
+
+def _consent_and_carry(conn: psycopg.Connection, kind: str, text: str) -> None:
+    """Approving a proposed note is the person's consent to that exact text, for that task.
+
+    The consent hashes the text; the carry job holds the text. Postgres checks
+    one against the other when the agent inserts the note. Here the operator's
+    CLI stands in for the person; in production this is their own approval,
+    bound to their identity.
+    """
+    _, task_id, standup_id = kind.split(":")
+    person_id = conn.execute("select person_id from work.standups where id = %s", (standup_id,)).fetchone()[0]
+    consent_id = conn.execute(
+        "insert into work.consents (person_id, task_id, text_sha256) values (%s, %s, %s) returning id::text",
+        (person_id, task_id, hashlib.sha256(text.encode("utf-8")).hexdigest())).fetchone()[0]
+    conn.execute(
+        "insert into counsel.jobs (agent, idempotency_key, payload) values ('standup_carrier', %s, %s)",
+        (f"carry:{consent_id}", json.dumps({"consent_id": consent_id, "task_id": task_id, "text": text})))
 
 
 def reject(conn: psycopg.Connection, draft_id: str, at: datetime | None = None) -> str:

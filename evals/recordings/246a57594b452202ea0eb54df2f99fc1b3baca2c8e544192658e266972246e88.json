@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1567,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 59,
+  "prompt_tokens": 268,
+  "provider": "nvidia",
+  "text": "{\"notes\": [{\"task\": \"Fix flaky checkout test\", \"text\": \"On the flaky checkout test, the vendor sandbox is back up and the test passed 40 times in a row overnight. I want one more day of runs before calling it fixed.\"}]}"
+}

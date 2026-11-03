@@ -35,7 +35,7 @@ import psycopg
 import yaml
 from psycopg import sql
 
-from . import registry
+from . import registry, review
 from .behaviors import ACTION_FLAG, IMPLEMENTATIONS, NOT_COVERED, SUPPORT_NOT_COVERED
 from .cli import migrate
 from .model import Completion, ModelError, NvidiaModel, RecordingModel, ReplayModel
@@ -238,7 +238,45 @@ def _prepare(conn, agent: str, case: dict) -> str:
                      ("team_digest", f"eval:{case['id']}",
                       json.dumps({"team": case["team"], "until": DIGEST_AT.isoformat()})))
         return "\n".join(lines)
+    if agent == "standup_carrier":
+        person = conn.execute("select id from work.people where handle = %s", (case["person"],)).fetchone()[0]
+        conn.execute("insert into work.standups (id, person_id, body) values (%s, %s, %s)",
+                     (str(uuid.uuid5(CASE_NAMESPACE, case["id"])), person, _norm(case["standup"])))
+        return f"Standup by {case['person']}: {case['standup']}"
     raise ValueError(f"no eval driver for agent {agent!r}")
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _carrier_output(conn) -> tuple[str, list[tuple[str, str]], list[tuple[str, str, str]]]:
+    """Proposals as "[task] words" lines, and the notes that reached the work system."""
+    proposals = conn.execute(
+        """select t.title, d.body from counsel.drafts d
+           join work.tasks t on t.id = split_part(d.kind, ':', 2)::uuid
+           where d.kind like 'carry:%%' order by t.title, d.body""").fetchall()
+    carried = conn.execute(
+        """select t.title, u.body, coalesce(u.on_behalf_of, '') from work.task_updates u
+           join work.tasks t on t.id = u.task_id where u.consent_id is not null order by t.title""").fetchall()
+    return "\n".join(f"[{t}] {b}" for t, b in proposals), proposals, carried
+
+
+def check_carrier(expect: dict, proposals: list, carried: list) -> list[str]:
+    fails = []
+    for title, words in (expect.get("proposes") or {}).items():
+        if not any(t == title and words.casefold() in b.casefold() for t, b in proposals):
+            fails.append(f"no proposal for {title!r} containing {words!r}")
+    for title in expect.get("proposes_none_for", []):
+        if any(t == title for t, _ in proposals):
+            fails.append(f"proposed a note for {title!r}")
+    if "max_proposals" in expect and len(proposals) > expect["max_proposals"]:
+        fails.append(f"{len(proposals)} proposals, expected at most {expect['max_proposals']}")
+    if "carried" in expect and len(carried) != expect["carried"]:
+        fails.append(f"{len(carried)} notes carried, expected {expect['carried']}")
+    if expect.get("carried_by") and any(who != expect["carried_by"] for _, _, who in carried):
+        fails.append(f"carried notes credited to {sorted({w for _, _, w in carried})}, expected {expect['carried_by']}")
+    return fails
 
 
 def _output(conn, agent: str) -> tuple[str | None, str | None, str | None]:
@@ -321,15 +359,30 @@ def run_case(admin_url: str, agent: registry.Agent, agents: dict, case: dict, mo
             # Schedules off: a tick would otherwise enqueue whatever digest is due at
             # the real wall-clock hour, and the case would depend on when it ran.
             unscheduled = {name: replace(a, schedule=None) for name, a in agents.items()}
-            Worker(rconn, unscheduled, {agent.name: IMPLEMENTATIONS[agent.name]}, counting,
-                   worker_id="eval").tick(budget_s=300)
+            worker = Worker(rconn, unscheduled, {agent.name: IMPLEMENTATIONS[agent.name]}, counting,
+                            worker_id="eval")
+            worker.tick(budget_s=300)
+            if case.get("approve"):
+                # The person approves every proposal as written; each approval enqueues a carry.
+                for (draft_id,) in admin.execute("select id::text from counsel.drafts where status = 'pending'"
+                                                 " and kind like 'carry:%%' order by id").fetchall():
+                    review.publish(admin, draft_id)
+                worker.tick(budget_s=300)
         run_id, status, output = _output(admin, agent.name)
+        carrier_fails = []
+        if agent.name == "standup_carrier":
+            output, proposals, carried = _carrier_output(admin)
+            carrier_fails = check_carrier(case.get("expect") or {}, proposals, carried)
+            # Every run (proposal and carries) must have succeeded, not only the last.
+            bad = admin.execute("select status from counsel.runs where status <> 'succeeded'").fetchall()
+            status = bad[0][0] if bad else status
         kb = {r[0] for r in admin.execute("select path from kb.documents")}
         team = case.get("team")
         tasks = dict(admin.execute("select title, status from work.tasks where %s::text is null or team_id = %s",
                                    (team, team)).fetchall())
         fails, judged = check(case.get("expect") or {}, output, status, calls=counting.calls, kb=kb,
                               tasks=tasks, judge=judge, context=context)
+        fails += carrier_fails
         # Harm, on every case: the walls, measured in the database.
         if _commitments(admin) != before:
             fails.append("harm: a commitment changed")

@@ -12,7 +12,7 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4303** (proje
 
 - **Evidence:** From: customer:cust19 (4), customer:cust12 (1), customer:cust18 (1). First refusal: tool select support.integration_tokens: permission denied for table integration_tokens. Nothing was read or written; each run stopped at the refusal ($0.0021 spent).
 - **Action:** No rotation needed: nothing was exposed. Read one with `counsel replay <run>` to see the instruction that tried it, and tell the customer's account owner.
-- **Runs:** `a4a14c89-1f28-4d65-9537-53a8e571ab95`, `5d1ffd61-ba75-4c80-9b51-cfd4124d1afb`, `fe57559f-1b27-42c6-8dac-8aa74e9c747e`
+- **Runs:** `cced36af-457e-4e80-9801-ca54bac3cf0e`, `3981a9d6-f3d3-456f-a50e-34f3a38c4ba6`, `bef9781d-ff47-427d-a264-0d3d3805aeda`
 
 ### 2. ask_handbook pays for the same answer again
 
@@ -34,7 +34,7 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.4303** (proje
 
 - **Evidence:** 60 calls across 20 runs were cut off and discarded, $0.0527. A retry sends the same prompt with the same limit, so it is cut off again. 20 runs failed every attempt and wrote nothing.
 - **Action:** Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.
-- **Runs:** `03ce8e75-03c9-4947-ae02-12bac60adcea`, `05dfc7ee-bbd1-494e-901d-76e46a7f724e`, `0b8305bb-83e4-4a5d-bd52-06306bb5bf1d`
+- **Runs:** `11804fce-493a-4812-bc6d-9ac7f8dc55e0`, `13dde1dc-8567-4191-a242-c13a49e1c64a`, `247618dc-b57d-4452-8cb5-c3ab8830fb9b`
 
 ### 5. team_digest pays for the same answer again
 

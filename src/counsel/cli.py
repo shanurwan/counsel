@@ -1,4 +1,4 @@
-"""counsel validate | compile | audit | bench | eval | review | report | trace | simulate"""
+"""counsel validate | compile | audit | bench | eval | ask | standup | review | report | trace | simulate"""
 
 from __future__ import annotations
 
@@ -151,6 +151,21 @@ def cmd_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_standup(args: argparse.Namespace) -> int:
+    """Post a standup for a person; the next tick proposes notes for them to approve."""
+    import psycopg
+
+    with psycopg.connect(_dsn(args)) as conn:
+        person = conn.execute("select id from work.people where handle = %s", (args.handle,)).fetchone()
+        if person is None:
+            print(f"no person {args.handle!r}", file=sys.stderr)
+            return 1
+        sid = conn.execute("insert into work.standups (person_id, body) values (%s, %s) returning id",
+                           (person[0], args.text)).fetchone()[0]
+    print(f"queued standup {sid}; after the next tick, `counsel review` lists the proposed notes")
+    return 0
+
+
 def cmd_bench(args: argparse.Namespace) -> int:
     from .bench import run
 
@@ -292,6 +307,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("tick", help="run one scheduler tick (as counsel_runtime)")
     p.add_argument("--dsn")
     p.set_defaults(fn=cmd_tick)
+
+    p = sub.add_parser("standup", help="post a person's standup; proposed notes need their approval")
+    p.add_argument("handle")
+    p.add_argument("text")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_standup)
 
     p = sub.add_parser("ask", help="ask the handbook agent a question (as an admin)")
     p.add_argument("question")

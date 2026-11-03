@@ -5,7 +5,8 @@ description: >
   when it is due, or its status.
 owner: platform
 tier: T2
-capabilities: [read_tasks, carry_updates]
+capabilities: [read_tasks, write_drafts, carry_updates]
 triggers:
   events: [standup_message_received]
 suite: evals/standup_carrier
+minutes_per_output: 3

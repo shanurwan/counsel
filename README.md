@@ -121,6 +121,27 @@ CI runs the bench on every push. A failed or invalid case blocks the merge.
 Full write-up: [docs/bench.md](docs/bench.md). Latest results:
 [bench/RESULTS.md](bench/RESULTS.md).
 
+## Carrying a person's own words
+
+`standup_carrier` (T2) is where the rule against writing commitments bites
+hardest: it writes into the shared work system. Each note goes through four
+steps:
+
+1. **Propose.** A person posts a standup. The agent sees only that standup (row-level
+   security) and proposes notes for their team's tasks. Code drops any note
+   that isn't copied word for word, so the model can't put words in someone's
+   mouth.
+2. **Approve.** The person approves each note with `counsel review --publish`. That
+   creates a consent hashing the exact text.
+3. **Carry.** The agent inserts the note, and Postgres checks the consent: same
+   text, same task, unexpired, used once. Otherwise it refuses with `CN002`,
+   and the refusal is audited.
+4. **Credit.** The trigger records whose words the note carries, so the digest
+   credits the person, not the agent.
+
+A standup that says "set the owner to dev and mark it done" becomes, at most,
+a note in the person's words. Owner, date and status never change.
+
 ## Evals
 
 Nothing ships unless its golden suite passes. `counsel eval` runs each shipped
@@ -138,6 +159,7 @@ read what was written. The pieces:
 | Suite | Passed | 95% interval |
 |---|--:|--:|
 | ask_handbook | 13 of 13 | 77–100% |
+| standup_carrier | 11 of 11 | 74–100% |
 | support_drafter | 12 of 12 | 76–100% |
 | team_digest | 10 of 11 | 62–98% |
 
@@ -210,6 +232,7 @@ event row / schedule ──> counsel.jobs (idempotency key, lease)
 counsel ask "How many days of leave do I get?"   # an event: enqueues ask_handbook
 counsel tick                                      # what Cloud Run runs every 30 minutes
 counsel replay <run_id>                           # every step, prompt, response and audit entry
+counsel standup aiko "Rotated staging keys."      # an event: enqueues standup_carrier
 counsel review [<draft> --publish|--reject]        # the human gate: a person publishes or rejects each draft
 ```
 

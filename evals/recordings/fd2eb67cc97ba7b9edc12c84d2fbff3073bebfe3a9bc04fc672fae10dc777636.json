@@ -1,0 +1,8 @@
+{
+  "latency_ms": 784,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 39,
+  "prompt_tokens": 237,
+  "provider": "nvidia",
+  "text": "{\"notes\": [{\"task\": \"Referral experiment readout\", \"text\": \"The cohort export finally arrived, so I am writing up the referral experiment readout today.\"}]}"
+}

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1180,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 37,
+  "prompt_tokens": 236,
+  "provider": "nvidia",
+  "text": "{\"notes\": [{\"task\": \"Ship rate limiter\", \"text\": \"Ship rate limiter is merged behind a flag. Next I will load test it on staging.\"}]}"
+}

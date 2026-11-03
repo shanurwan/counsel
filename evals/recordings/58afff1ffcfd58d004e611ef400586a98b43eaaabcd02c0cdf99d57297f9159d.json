@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1553,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 62,
+  "prompt_tokens": 249,
+  "provider": "nvidia",
+  "text": "{\"notes\": [{\"task\": \"Ship rate limiter\", \"text\": \"dashboards for the token bucket are up.\"}, {\"task\": \"Fix flaky checkout test\", \"text\": \"On the flaky checkout test I reviewed aiko's fix for the race in setup.\"}]}"
+}

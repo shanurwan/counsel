@@ -1,8 +1,8 @@
 {
-  "latency_ms": 1926,
+  "latency_ms": 1045,
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
-  "output_tokens": 49,
+  "output_tokens": 43,
   "prompt_tokens": 242,
   "provider": "nvidia",
-  "text": "{\"verdict\": \"fail\", \"reason\": \"The output repeats the source's blaming language ('missed the readout deadline again') instead of stating the fact neutrally (e.g., 'the readout slipped').\"}"
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The output repeats the source's blaming language ('missed the readout deadline again') which characterizes Bruno negatively rather than stating facts neutrally.\"}"
 }
