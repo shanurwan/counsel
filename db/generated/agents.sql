@@ -160,3 +160,17 @@ grant usage on schema work to agent_team_digest;
 grant select on work.teams, work.people, work.tasks to agent_team_digest;
 grant select on work.task_updates to agent_team_digest;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_team_digest;
+
+-- Per-agent settings for the value ledger and budgets (0008_ledger.sql).
+insert into counsel.agent_settings (agent, owner, minutes_per_output, budget_usd) values
+  ('ask_handbook', 'people-ops', 6, null),
+  ('drift_watcher', 'platform', null, null),
+  ('exec_weekly', 'ops-lead', null, null),
+  ('issue_triage', 'platform', null, null),
+  ('nudge', 'ops-lead', null, null),
+  ('standup_carrier', 'platform', null, null),
+  ('support_drafter', 'support', 12, null),
+  ('team_digest', 'platform', 15, null)
+on conflict (agent) do update set owner = excluded.owner,
+  minutes_per_output = excluded.minutes_per_output, budget_usd = excluded.budget_usd;
+delete from counsel.agent_settings where agent not in ('ask_handbook', 'drift_watcher', 'exec_weekly', 'issue_triage', 'nudge', 'standup_carrier', 'support_drafter', 'team_digest');

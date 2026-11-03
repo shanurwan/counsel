@@ -68,6 +68,16 @@ jobs:
           path: bench/
           if-no-files-found: error
 
+      - name: Eval gate (golden suites, recorded Nemotron, calibrated judge)
+        run: counsel eval --out evals > /dev/null
+
+      - name: Publish the eval summary
+        if: always()
+        run: |
+          if [ -f evals/RESULTS.md ]; then
+            cat evals/RESULTS.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Cost benchmark (a synthetic month, twice)
         run: |
           counsel simulate --out cost > /dev/null

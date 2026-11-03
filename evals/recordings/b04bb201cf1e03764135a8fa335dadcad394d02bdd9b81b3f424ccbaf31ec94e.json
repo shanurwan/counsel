@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1785,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 40,
+  "prompt_tokens": 341,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The digest correctly credits dev for the pairing and root cause identification while listing aiko as the task owner, matching the source data exactly.\"}"
+}

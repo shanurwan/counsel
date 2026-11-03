@@ -1,0 +1,8 @@
+{
+  "latency_ms": 759,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 17,
+  "prompt_tokens": 170,
+  "provider": "nvidia",
+  "text": "On-call pages must be acknowledged within 15 minutes [oncall.md]."
+}

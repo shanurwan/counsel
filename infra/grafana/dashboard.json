@@ -65,7 +65,7 @@
       "id": 2,
       "type": "stat",
       "title": "Projected month",
-      "description": "This range's daily rate, run for 30 days.",
+      "description": "The daily rate since the first run in this range, run for 30 days.",
       "datasource": {
         "type": "grafana-postgresql-datasource",
         "uid": "COUNSEL_DS_UID"
@@ -86,7 +86,7 @@
           "format": "table",
           "rawQuery": true,
           "editorMode": "code",
-          "rawSql": "select coalesce(sum(usd), 0) * 30 / greatest(extract(epoch from ($__timeTo()::timestamptz - $__timeFrom()::timestamptz)) / 86400, 1) as month from counsel.run_costs where $__timeFilter(started_at)"
+          "rawSql": "select coalesce(sum(usd), 0) * 30 / greatest(extract(epoch from ($__timeTo()::timestamptz - greatest($__timeFrom()::timestamptz, min(started_at)))) / 86400, 1) as month from counsel.run_costs where $__timeFilter(started_at)"
         }
       ],
       "fieldConfig": {
@@ -241,7 +241,8 @@
             "stacking": {
               "mode": "normal"
             }
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -325,7 +326,8 @@
             "stacking": {
               "mode": "normal"
             }
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -375,7 +377,8 @@
             "stacking": {
               "mode": "normal"
             }
-          }
+          },
+          "min": 0
         },
         "overrides": []
       },
@@ -483,6 +486,88 @@
           "rawQuery": true,
           "editorMode": "code",
           "rawSql": "select agent, requester, count(*) as runs, round(sum(usd)::numeric, 4) as usd from counsel.run_costs where $__timeFilter(started_at) group by 1, 2 order by usd desc limit 20"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "Hours of work absorbed",
+      "description": "Outputs a person accepted (an answered question, a published draft) times the owner's minutes_per_output estimate. Whole months overlapping the range.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select coalesce(sum(hours_absorbed), 0) as hours from counsel.value_ledger where month >= date_trunc('month', $__timeFrom()::timestamptz) and month < $__timeTo()::timestamptz"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value"
+      }
+    },
+    {
+      "id": 21,
+      "type": "table",
+      "title": "Value ledger",
+      "description": "Outputs a person accepted (an answered question, a published draft) times the owner's minutes_per_output estimate. Whole months overlapping the range.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "COUNSEL_DS_UID"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 36,
+        "w": 18,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "COUNSEL_DS_UID"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "select agent, owner, sum(runs) as runs, sum(accepted) as accepted, max(minutes_per_output) as minutes_each, round(sum(hours_absorbed)::numeric, 1) as hours_absorbed, round(sum(usd)::numeric, 4) as usd, round((sum(usd) / nullif(sum(hours_absorbed), 0))::numeric, 4) as usd_per_hour from counsel.value_ledger where month >= date_trunc('month', $__timeFrom()::timestamptz) and month < $__timeTo()::timestamptz group by agent, owner order by hours_absorbed desc nulls last"
         }
       ],
       "fieldConfig": {

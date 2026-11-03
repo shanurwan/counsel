@@ -29,6 +29,8 @@ CACHE_HOURS = 168  # what the report suggests; owners pick their own
 # One requester with at least this share, and twice a fair share, of an agent's spend is worth a look.
 OUTSIZED_SHARE = 0.25
 MIN_RUNS_FOR_SHARE = 20  # below this an agent's split by requester is noise
+REJECTION_RATE = 0.25  # people rejecting more than this share of drafts is worth a look
+MIN_REVIEWED = 10
 
 
 @dataclass
@@ -76,7 +78,7 @@ def build(conn: psycopg.Connection, agents: list[Agent], since: datetime, until:
 
     rows = {name: query(conn, name, since, until) for name in (
         "by_agent", "by_day", "repeats", "tool_loops", "billed_errors", "refused_runs",
-        "dead_runs", "outliers", "requesters", "data_quality")}
+        "dead_runs", "outliers", "requesters", "data_quality", "ledger")}
     findings: list[Finding] = []
 
     for r in rows["by_agent"]:
@@ -174,6 +176,15 @@ def build(conn: psycopg.Connection, agents: list[Agent], since: datetime, until:
             "Look at what they ask: a docs page or a product fix may remove the questions entirely. "
             "Not a saving the platform can make on its own.", owner(agent), agent))
 
+    for r in rows["ledger"]:
+        if r["reviewed"] >= MIN_REVIEWED and r["rejected"] / r["reviewed"] > REJECTION_RATE:
+            findings.append(Finding(
+                "quality", f"People reject {r['rejected'] / r['reviewed']:.0%} of {r['agent']} drafts",
+                f"{r['rejected']} of {r['reviewed']} reviewed drafts were rejected, and each one still cost a "
+                "model call and a person's time to read it.",
+                "Read the rejected drafts and turn the common reason into an eval case, then fix the prompt "
+                "or the docs until the suite passes.", owner(r["agent"]), r["agent"]))
+
     for r in rows["data_quality"]:
         findings.append(Finding(
             "data", f"{r['model']} ({r['provider']}): spend is estimated or unpriced",
@@ -187,7 +198,7 @@ def build(conn: psycopg.Connection, agents: list[Agent], since: datetime, until:
         if f.monthly_usd and agent_month.get(f.agent):
             f.share = f.monthly_usd / agent_month[f.agent]
 
-    order = {"security": 0, "budget": 1, "cost": 2, "waste": 2, "data": 3}
+    order = {"security": 0, "budget": 1, "quality": 2, "cost": 3, "waste": 3, "data": 4}
     findings.sort(key=lambda f: (order[f.kind], -f.monthly_usd))
     total = sum(r["usd"] for r in rows["by_agent"])
     return {
@@ -196,7 +207,8 @@ def build(conn: psycopg.Connection, agents: list[Agent], since: datetime, until:
         "runs": sum(r["runs"] for r in rows["by_agent"]),
         "saved_usd": sum(r["saved_usd"] for r in rows["by_agent"]),
         "agents": rows["by_agent"], "by_day": rows["by_day"], "outliers": rows["outliers"],
-        "repeats": rows["repeats"],
+        "repeats": rows["repeats"], "ledger": rows["ledger"],
+        "hours_absorbed": sum(r["hours_absorbed"] or 0 for r in rows["ledger"]),
         "findings": [asdict(f) for f in findings],
     }
 
@@ -244,6 +256,27 @@ def render(report: dict, title: str = "Agent spend report", note: str | None = N
             out.append(f"| `{o['run_id']}` | {o['agent']} | {o['requester']} | {o['status']} | "
                        f"{o['model_calls']} | {usd(o['usd'])} | {o['times_median']:.1f} |")
         out += ["", "`counsel replay <run>` shows every step and prompt of a run.", ""]
+
+    ledger = [r for r in report.get("ledger", []) if r["runs"] or r["accepted"]]
+    if ledger:
+        out += ["## Value ledger", "",
+                f"**{report['hours_absorbed']:,.1f} hours** of work absorbed for {usd(report['total_usd'])} of model "
+                "spend. An output counts only once a person accepted it (an answered question, a published "
+                "draft); its worth is the owner's estimate in `minutes_per_output`, not a measurement.", "",
+                "| Agent | Owner | Runs | Accepted | Rejected | Edited before publishing | Minutes each "
+                "| Hours absorbed | Spend | Per hour absorbed |",
+                "|---|---|--:|--:|--:|--:|--:|--:|--:|--:|"]
+        for r in ledger:
+            hours = r["hours_absorbed"]
+            per_hour = usd(r["usd"] / hours) if hours else "n/a"
+            out.append(f"| {r['agent']} | {r['owner'] or ''} | {r['runs']:,} | {r['accepted']:,} | "
+                       f"{r['rejected']:,} of {r['reviewed']:,} | {r['edited']:,} | "
+                       f"{r['minutes_per_output'] or 'not set'} | "
+                       f"{hours:,.1f} | {usd(r['usd'])} | {per_hour} |" if hours is not None else
+                       f"| {r['agent']} | {r['owner'] or ''} | {r['runs']:,} | {r['accepted']:,} | "
+                       f"{r['rejected']:,} of {r['reviewed']:,} | {r['edited']:,} | not set | n/a | "
+                       f"{usd(r['usd'])} | n/a |")
+        out.append("")
 
     data = [f for f in report["findings"] if f["kind"] == "data"]
     if data:

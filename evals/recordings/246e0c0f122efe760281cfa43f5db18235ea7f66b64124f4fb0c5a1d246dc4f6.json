@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1388,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 24,
+  "prompt_tokens": 274,
+  "provider": "nvidia",
+  "text": "You get 18 days of paid annual leave per year, plus public holidays where you live [leave.md]."
+}

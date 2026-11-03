@@ -1,0 +1,8 @@
+{
+  "latency_ms": 793,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 26,
+  "prompt_tokens": 170,
+  "provider": "nvidia",
+  "text": "The on-call rotation hands over on Mondays at 09:00 Kuala Lumpur time. [oncall.md]"
+}

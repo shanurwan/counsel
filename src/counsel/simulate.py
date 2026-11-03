@@ -29,7 +29,8 @@ import psycopg
 from psycopg import sql
 
 from . import cost, registry
-from .behaviors import IMPLEMENTATIONS
+from . import review
+from .behaviors import ACTION_FLAG, IMPLEMENTATIONS, SUPPORT_NOT_COVERED
 from .cli import migrate
 from .model import Completion, ModelError, request_hash
 from .runtime import Worker
@@ -51,6 +52,7 @@ TICKETS_PER_WEEKDAY = 14
 WEEKEND_SHARE = 0.2
 VERBATIM_SHARE = 0.65  # asked from the list of common questions, word for word
 INJECTION_RATE = 1 / 45  # tickets carrying instructions aimed at an AI
+PUBLISH_RATE = 0.9  # reviewers publish this share of the drafts they could publish as written
 UPDATES_PER_WEEKDAY = 6
 SIM_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"  # priced as this model; provider is recorded as "sim"
 
@@ -258,6 +260,8 @@ def run_month(admin_url: str, agents: list[registry.Agent], days: int = DAYS) ->
     """Play one month into a fresh database. Returns the database URL."""
     url = fresh(admin_url)
     rng = random.Random(SEED_VALUE)  # nosec B311 - simulation, not security
+    # Its own stream, so reviewing never shifts which events happen.
+    reviewer = random.Random(SEED_VALUE + 1)  # nosec B311 - simulation, not security
     tasks = []
     with psycopg.connect(url, autocommit=True) as admin:
         people, customers = populate(admin, rng)
@@ -304,7 +308,23 @@ def run_month(admin_url: str, agents: list[registry.Agent], days: int = DAYS) ->
                                   "and not_before > %s", (at_hour + timedelta(minutes=59), at_hour + timedelta(hours=2)))
                     clock.now = at_hour + timedelta(hours=1, minutes=5)
                     worker.tick(budget_s=600)
+                    review_drafts(admin, reviewer, clock.now)
     return url
+
+
+def review_drafts(conn: psycopg.Connection, rng: random.Random, at: datetime) -> None:
+    """A simulated person on each team works through the drafts that came in.
+
+    A draft the docs did not cover, or one flagged for offering an action, is
+    rejected: the person writes their own reply. The rest are published as
+    written, except a share a person would rather rewrite than edit.
+    """
+    for draft_id, body in conn.execute("select id::text, body from counsel.drafts where status = 'pending' "
+                                       "order by created_at, id").fetchall():
+        if body.strip() == SUPPORT_NOT_COVERED or ACTION_FLAG in body or rng.random() >= PUBLISH_RATE:
+            review.reject(conn, draft_id, at=at)
+        else:
+            review.publish(conn, draft_id, at=at)
 
 
 # --- the benchmark: the month as shipped, then after acting on the report -----------------
@@ -357,6 +377,7 @@ def run(admin_url: str | None, out: Path, days: int = DAYS) -> int:
         "after": {"total_usd": a["report"]["total_usd"], "handbook_usd": ha.get("usd", 0),
                   "paid_calls": a["paid_calls"], "cache_hits": a["cache_hits"]},
         "answers_compared": len(b["answers"]), "answers_changed": changed,
+        "hours_absorbed": {"before": b["report"]["hours_absorbed"], "after": a["report"]["hours_absorbed"]},
         "findings_before": [f["title"] for f in b["report"]["findings"]],
     }
     (out / "results.json").write_text(json.dumps(results, indent=2, default=str) + "\n", encoding="utf-8")
@@ -374,7 +395,11 @@ def run(admin_url: str | None, out: Path, days: int = DAYS) -> int:
         f"| Paid model calls | {b['paid_calls']:,} | {a['paid_calls']:,} | "
         f"-{pct(b['paid_calls'], a['paid_calls']):.0f}% |",
         f"| Answers served from cache | 0 | {a['cache_hits']:,} | |",
-        f"| Answers that changed | | {changed} of {len(b['answers']):,} | |", "",
+        f"| Answers that changed | | {changed} of {len(b['answers']):,} | |",
+        f"| Hours of work absorbed (owner estimates) | {b['report']['hours_absorbed']:,.1f} | "
+        f"{a['report']['hours_absorbed']:,.1f} | |",
+        f"| Spend per hour absorbed | {cost.usd(b['report']['total_usd'] / b['report']['hours_absorbed'])} | "
+        f"{cost.usd(a['report']['total_usd'] / a['report']['hours_absorbed'])} | |", "",
         f"What drives the saving is how often people ask the exact same thing. In this workload "
         f"{VERBATIM_SHARE:.0%} of questions are copied from a list of common ones and the rest reworded from a "
         f"few templates, so {repeat_share:.0%} of handbook calls repeated an earlier request. A real org's "

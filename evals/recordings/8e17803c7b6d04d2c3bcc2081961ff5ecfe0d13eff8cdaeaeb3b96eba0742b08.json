@@ -1,0 +1,8 @@
+{
+  "latency_ms": 3733,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 55,
+  "prompt_tokens": 329,
+  "provider": "nvidia",
+  "text": "Growth \u2014 2026-11-03\n\nWhat moved\n- Referral experiment readout (owner: bruno): readout slipped.\n\nWhat's blocked\n- None.\n\nWaiting on\n- Pricing page copy: needs an owner."
+}

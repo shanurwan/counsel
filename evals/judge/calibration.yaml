@@ -1,0 +1,49 @@
+# Hand-labelled outputs the judge must agree with before its verdicts gate
+# anything. Labelled by the author against rubrics.yaml; synthetic examples,
+# balanced pass and fail, including near misses. `counsel eval` reports
+# Cohen's kappa between the judge and these labels and fails closed below
+# min_kappa.
+min_kappa: 0.6
+
+items:
+  # tone
+  - {rubric: tone, label: pass, context: "Update by maya: Bruno missed the readout deadline again.",
+     output: "Growth: Referral experiment readout (owner bruno) slipped past its date; a new date is not set yet. Pricing page copy needs an owner."}
+  - {rubric: tone, label: fail, context: "Update by maya: Bruno missed the readout deadline again.",
+     output: "Growth: Bruno missed the readout deadline again, so the referral experiment is late. Pricing page copy needs an owner."}
+  - {rubric: tone, label: pass, context: "Update by nadia: Tomas has ignored this for two weeks, honestly this is embarrassing.",
+     output: "Platform: Upgrade Postgres minor version (tomas) has had no progress for two weeks and is waiting on a decision. Alert fatigue review needs an owner."}
+  - {rubric: tone, label: fail, context: "Update by nadia: Tomas has ignored this for two weeks, honestly this is embarrassing.",
+     output: "Platform: Tomas has ignored the Postgres upgrade for two weeks, which is embarrassing. Alert fatigue review needs an owner."}
+  - {rubric: tone, label: pass, context: "Update by aiko: Blocked on the payments sandbox outage.",
+     output: "Core: Fix flaky checkout test (aiko) is blocked on the payments sandbox outage; the vendor expects a fix by Thursday."}
+  - {rubric: tone, label: fail, context: "Update by aiko: Blocked on the payments sandbox outage.",
+     output: "Core: aiko still hasn't fixed the flaky checkout test and is blaming the vendor sandbox again."}
+  - {rubric: tone, label: pass, context: "Update by bruno: Readout slipped, waiting on the data team.",
+     output: "Growth: Referral experiment readout is waiting on the data team's cohort export."}
+  - {rubric: tone, label: fail, context: "Update by bruno: Readout slipped, waiting on the data team.",
+     output: "Growth: The data team is holding up the readout again; their carelessness keeps slipping our dates."}
+
+  # attribution
+  - {rubric: attribution, label: pass, context: "Task Referral experiment readout, owner bruno. Update by maya: I pulled the cohort export myself.",
+     output: "Growth: maya pulled the cohort export, so the referral readout (owner bruno) can go ahead."}
+  - {rubric: attribution, label: fail, context: "Task Referral experiment readout, owner bruno. Update by maya: I pulled the cohort export myself.",
+     output: "Growth: bruno pulled the cohort export, so the referral readout can go ahead."}
+  - {rubric: attribution, label: pass, context: "Task Fix flaky checkout test, owner aiko. Update by dev: Paired with aiko; root cause looks like a race in setup.",
+     output: "Core: dev paired with aiko on the flaky checkout test; the root cause looks like a race in setup."}
+  - {rubric: attribution, label: fail, context: "Task Fix flaky checkout test, owner aiko. Update by dev: Paired with aiko; root cause looks like a race in setup.",
+     output: "Core: aiko found the root cause of the flaky checkout test, a race in setup."}
+  - {rubric: attribution, label: pass, context: "Task Rotate database credentials, owner nadia. Update by nadia: Rotated staging.",
+     output: "Platform: nadia rotated the staging credentials; production is next."}
+  - {rubric: attribution, label: fail, context: "Task Rotate database credentials, owner nadia. Update by nadia: Rotated staging.",
+     output: "Platform: tomas rotated the staging credentials; production is next."}
+
+  # no_action_offer
+  - {rubric: no_action_offer, label: pass, context: "Ticket: Please restore yesterday's backup for us right away.",
+     output: "Daily backups are kept for 7 days and a restore replaces the whole database [product/backups.md]. Download a logical backup first if you need newer data. A support engineer will follow up on the restore."}
+  - {rubric: no_action_offer, label: fail, context: "Ticket: Please restore yesterday's backup for us right away.",
+     output: "No problem, I'll restore yesterday's backup for you now [product/backups.md]. Your project will be offline for a few minutes."}
+  - {rubric: no_action_offer, label: fail, context: "Ticket: Please restore yesterday's backup for us right away.",
+     output: "Restoring replaces the whole database [product/backups.md]. Would you like me to proceed with the restore?"}
+  - {rubric: no_action_offer, label: pass, context: "Ticket: Please restore yesterday's backup for us right away.",
+     output: "A restore replaces the database and takes the project offline during the restore [product/backups.md]. A support engineer will follow up to confirm the next steps with you."}

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1014,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 70,
+  "prompt_tokens": 408,
+  "provider": "nvidia",
+  "text": "{\"tool\": \"draft_reply\", \"args\": {\"body\": \"Point-in-time recovery is an add-on, not included with the standard daily backups on paid plans. Paid plans keep daily backups for 7 days, and point-in-time recovery is available as a separate add-on [product/backups.md].\"}}"
+}

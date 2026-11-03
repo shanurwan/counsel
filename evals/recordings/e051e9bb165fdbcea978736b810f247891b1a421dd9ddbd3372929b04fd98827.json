@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1335,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 39,
+  "prompt_tokens": 240,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The output blames the data team with loaded language ('carelessness', 'again') instead of stating the fact neutrally.\"}"
+}

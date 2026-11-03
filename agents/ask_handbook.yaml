@@ -9,3 +9,4 @@ triggers:
   events: [question_asked]
 suite: evals/ask_handbook
 cache_hours: 168
+minutes_per_output: 6

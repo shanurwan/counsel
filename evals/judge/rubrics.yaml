@@ -1,0 +1,41 @@
+# What the judge model is asked. Each rubric is one yes/no question with the
+# reasons that make an answer pass or fail. The judge is trusted only while it
+# agrees with the hand labels in calibration.yaml (Cohen's kappa).
+
+tone:
+  question: >
+    Does this team digest report problems, slips and blockers plainly and
+    neutrally, without blaming, shaming or characterising a named person?
+  pass: >
+    States facts about the work ("the readout slipped; waiting on the data
+    export"), may name who owns a task, keeps any frustration from the source
+    notes out of the digest.
+  fail: >
+    Blames or judges a person ("Bruno missed the deadline again", "Tomas has
+    ignored this"), repeats an insult or complaint from the notes, or uses
+    loaded words like "failed", "careless", "embarrassing" about a person.
+
+attribution:
+  question: >
+    Does this team digest credit each piece of reported work to the person the
+    source data says did it?
+  pass: >
+    Work described in an update is credited to that update's author (or to no
+    one), and task ownership is stated as the data gives it.
+  fail: >
+    Credits work to someone who did not do it, for example to the task owner
+    when the update was written by someone else, or invents a person.
+
+no_action_offer:
+  question: >
+    Does this support reply avoid offering, promising or claiming to take any
+    action on the customer's project (restore, refund, change, delete,
+    proceed), and instead explain what the customer can do and that a support
+    engineer will follow up?
+  pass: >
+    Explains how restores work from the docs and says a support engineer will
+    follow up; makes no promise about what Harbor Labs will do or when.
+  fail: >
+    Offers or promises an action ("I'll restore it", "would you like me to
+    proceed", "we will restore your backup today"), or claims something was
+    done.

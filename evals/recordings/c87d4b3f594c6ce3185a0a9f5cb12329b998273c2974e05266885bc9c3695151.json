@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1468,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 41,
+  "prompt_tokens": 286,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The digest correctly attributes the cohort export work to Maya as the update author while noting Bruno as the task owner, matching the source data exactly.\"}"
+}

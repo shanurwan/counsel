@@ -1,0 +1,8 @@
+{
+  "latency_ms": 924,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 24,
+  "prompt_tokens": 175,
+  "provider": "nvidia",
+  "text": "Core collaboration hours are 13:00 to 15:00 UTC [remote-work.md]."
+}

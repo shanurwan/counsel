@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1032,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 21,
+  "prompt_tokens": 171,
+  "provider": "nvidia",
+  "text": "The handbook does not cover this. Ask in #people-ops and a person will answer."
+}

@@ -34,7 +34,9 @@ REQUIRED = ("name", "description", "owner", "tier", "capabilities", "triggers", 
 # budget_usd: the owner's monthly model spend; `counsel report` flags a projected overrun.
 # cache_hours: reuse the answer to an identical request for this long. T0 only:
 # a T0 prompt holds the question and handbook text, never another person's data.
-OPTIONAL = ("budget_usd", "cache_hours")
+# minutes_per_output: the owner's estimate of how long a person takes to do one
+# output by hand. The value ledger counts it only for outputs a person accepted.
+OPTIONAL = ("budget_usd", "cache_hours", "minutes_per_output")
 ALLOWED = set(REQUIRED) | set(OPTIONAL)
 TRIGGER_KEYS = {"schedule", "events"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
@@ -60,6 +62,7 @@ class Agent:
     source: str = field(default="", compare=False)
     budget_usd: float | None = None
     cache_hours: int | None = None
+    minutes_per_output: int | None = None
 
     @property
     def role(self) -> str:
@@ -119,6 +122,9 @@ def validate_entry(doc: object, source: str) -> list[str]:
     budget = doc.get("budget_usd")
     if budget is not None and (isinstance(budget, bool) or not isinstance(budget, (int, float)) or budget <= 0):
         problems.append(f"{where}: budget_usd must be a positive number of dollars per month")
+    minutes = doc.get("minutes_per_output")
+    if minutes is not None and (isinstance(minutes, bool) or not isinstance(minutes, int) or not 1 <= minutes <= 480):
+        problems.append(f"{where}: minutes_per_output must be a whole number of minutes, 1 to 480")
     cache = doc.get("cache_hours")
     if cache is not None:
         if isinstance(cache, bool) or not isinstance(cache, int) or not 1 <= cache <= 24 * 30:
@@ -166,6 +172,7 @@ def load(directory: Path) -> list[Agent]:
             source=source,
             budget_usd=doc.get("budget_usd"),
             cache_hours=doc.get("cache_hours"),
+            minutes_per_output=doc.get("minutes_per_output"),
         ))
 
     names = [a.name for a in agents]

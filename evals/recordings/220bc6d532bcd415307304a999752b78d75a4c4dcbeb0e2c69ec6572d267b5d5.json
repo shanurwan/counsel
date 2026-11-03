@@ -1,0 +1,8 @@
+{
+  "latency_ms": 3040,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 78,
+  "prompt_tokens": 423,
+  "provider": "nvidia",
+  "text": "{\"tool\": \"draft_reply\", \"args\": {\"body\": \"Point your serverless functions at the connection pooler on port 6543 (transaction mode) instead of the direct connection on port 5432, and lower the pool size per client. You can adjust the pool size in Database settings. [product/connection-pooling.md]\"}}"
+}

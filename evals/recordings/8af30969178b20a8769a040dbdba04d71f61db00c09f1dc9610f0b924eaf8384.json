@@ -1,0 +1,8 @@
+{
+  "latency_ms": 2775,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 62,
+  "prompt_tokens": 425,
+  "provider": "nvidia",
+  "text": "{\"tool\": \"draft_reply\", \"args\": {\"body\": \"The pool size per client for the connection pooler is set in **Database settings** in your project dashboard. From the docs: \\\"Pool size is set in Database settings.\\\" [product/connection-pooling.md]\"}}"
+}

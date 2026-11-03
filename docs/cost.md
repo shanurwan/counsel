@@ -32,6 +32,34 @@ The aim is a report someone acts on, not a dashboard someone looks at.
 Agents cannot read any of it. No cost table or view is granted to an agent,
 the orchestrator or the runtime login (`tests/test_cost.py`).
 
+## Value ledger
+
+Spend alone says nothing about whether the agents are worth running. The
+ledger ([`db/migrations/0008_ledger.sql`](../db/migrations/0008_ledger.sql),
+[`db/reports/ledger.sql`](../db/reports/ledger.sql)) sets spend against the
+work people didn't have to do:
+
+- **Accepted outputs only.** An output counts once a person accepts it. A
+  handbook answer counts when it answered (not "the handbook does not cover
+  this"). A draft counts when a person published it with `counsel review
+  <draft> --publish`. Agents cannot update drafts at all, so they can't accept
+  their own work.
+- **Owner estimates.** Each accepted output is worth the owner's estimate,
+  `minutes_per_output` in the agent's YAML, of how long it takes by hand. That
+  estimate is set in a PR, and it's an estimate, not a measurement. The ledger
+  says so wherever it appears.
+- **Rejections and edits count too.** If people reject more than a quarter of
+  an agent's drafts, the report raises a quality finding. The agent's text is
+  kept as written beside what was published, so heavy editing shows up too.
+
+In the synthetic October: 146.4 hours absorbed for $0.44. The handbook agent
+answered 739 questions (6 minutes each). Support published 249 drafts and
+rejected 73 (12 minutes each). Digests: 91 published (15 minutes each).
+Reviewers there are simulated:
+- they reject drafts the docs didn't cover, and drafts flagged for offering
+  an action;
+- they publish 9 in 10 of the rest.
+
 ## Dashboard and alerts
 
 [`infra/grafana/`](../infra/grafana) is a separate Terraform root for Grafana
@@ -145,8 +173,8 @@ From the synthetic October, `cost/before/REPORT.md` ranks these six findings
 |---|---|---|---|
 | 1 | 6 runs asked for `support.integration_tokens` and Postgres refused | security | Nothing exposed, nothing to rotate. Replay one and tell the account owner. |
 | 2 | ask_handbook pays for the same answer again (88% of paid calls repeat) | people-ops | Add `cache_hours: 168` |
-| 3 | support_drafter makes a second model call in 40% of runs | support | Put the ticket thread in the first prompt |
-| 4 | team_digest: 12 billed calls cut off at `max_tokens=400` and retried unchanged | platform | Raise `max_tokens`; don't retry a truncation as-is |
+| 3 | team_digest: 75 billed calls cut off at `max_tokens=400` and retried unchanged | platform | Raise `max_tokens`; don't retry a truncation as-is |
+| 4 | support_drafter makes a second model call in 40% of runs | support | Put the ticket thread in the first prompt |
 | 5 | team_digest resends identical activity on quiet days | platform | Skip the run when nothing changed |
 | 6 | One customer drives 65% of support_drafter spend | support | Look for the docs gap behind their tickets |
 
@@ -188,9 +216,9 @@ Both arms use the same events, the same seed and the same simulated model.
 
 | | Before | After | Change |
 |---|--:|--:|--:|
-| Total spend | $0.3832 | $0.2686 | −30% |
+| Total spend | $0.4426 | $0.3280 | −26% |
 | ask_handbook spend | $0.1561 | $0.0414 | −73% |
-| Paid model calls | 1,266 | 732 | −42% |
+| Paid model calls | 1,245 | 711 | −43% |
 | Answers served from cache | 0 | 534 | |
 | Answers that changed | | 0 of 798 | |
 

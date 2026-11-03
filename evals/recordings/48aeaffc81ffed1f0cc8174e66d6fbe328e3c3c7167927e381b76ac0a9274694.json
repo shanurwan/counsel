@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1781,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 48,
+  "prompt_tokens": 343,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The reply explains how restores work per the docs, suggests an alternative (logical backup), and states a support engineer will follow up without promising any action by Harbor Labs.\"}"
+}

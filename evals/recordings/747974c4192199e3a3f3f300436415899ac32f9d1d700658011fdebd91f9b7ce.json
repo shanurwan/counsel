@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1435,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 39,
+  "prompt_tokens": 456,
+  "provider": "nvidia",
+  "text": "{\"tool\": \"draft_reply\", \"args\": {\"body\": \"On a paid plan, daily backups are kept for 7 days [product/backups.md].\"}}"
+}

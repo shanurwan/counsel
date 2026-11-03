@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1920,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 45,
+  "prompt_tokens": 245,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The output repeats the source's loaded language ('ignored', 'embarrassing') and blames Tomas personally instead of stating the work status neutrally.\"}"
+}

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 3832,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 40,
+  "prompt_tokens": 199,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The output credits Tomas with rotating staging credentials, but the source data shows the update was written by Nadia and the task owner is Nadia.\"}"
+}

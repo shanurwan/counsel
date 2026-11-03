@@ -1,0 +1,8 @@
+{
+  "latency_ms": 912,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 38,
+  "prompt_tokens": 199,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The output credits the credential rotation to nadia, who is both the task owner and the update author in the source data.\"}"
+}

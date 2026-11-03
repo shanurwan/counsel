@@ -1,4 +1,4 @@
-"""counsel validate | compile | audit | bench | report | trace | simulate"""
+"""counsel validate | compile | audit | bench | eval | review | report | trace | simulate"""
 
 from __future__ import annotations
 
@@ -194,6 +194,40 @@ def cmd_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_eval(args: argparse.Namespace) -> int:
+    from .evals import run
+
+    return run(args.admin_url, Path(args.out), args.repeat, args.agent)
+
+
+def cmd_review(args: argparse.Namespace) -> int:
+    """List drafts waiting for a person, or publish or reject one, as you."""
+    import psycopg
+
+    from . import review
+
+    with psycopg.connect(_dsn(args)) as conn:
+        try:
+            if not args.draft_id:
+                for d in review.pending(conn):
+                    print(f"{d['id']}  {d['agent']}  {d['kind']}  {d['created_at']:%Y-%m-%d %H:%M}")
+                    print("    " + d["body"][:300].replace("\n", "\n    ") + "\n")
+                return 0
+            if args.publish:
+                body = Path(args.body_file).read_text(encoding="utf-8") if args.body_file else None
+                kind = review.publish(conn, args.draft_id, body)
+                print(f"published {kind}" + (" (posted to the customer as you)" if kind.startswith("support_reply") else ""))
+            elif args.reject:
+                print(f"rejected {review.reject(conn, args.draft_id)}")
+            else:
+                print("pass --publish or --reject", file=sys.stderr)
+                return 2
+        except review.ReviewError as e:
+            print(e, file=sys.stderr)
+            return 1
+    return 0
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     """Spend per run, agent and requester, and the findings an owner can act on."""
     from datetime import datetime, timezone
@@ -273,6 +307,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--admin-url", default=os.environ.get("COUNSEL_TEST_ADMIN_URL"))
     p.add_argument("--out", default="bench")
     p.set_defaults(fn=cmd_bench)
+
+    p = sub.add_parser("eval", help="run every shipped agent's golden suite; exit 1 if any gate fails")
+    p.add_argument("--admin-url", default=os.environ.get("COUNSEL_TEST_ADMIN_URL"))
+    p.add_argument("--out", default="evals")
+    p.add_argument("--repeat", type=int, default=1, help="run each case N times (live, to measure variance)")
+    p.add_argument("--agent", help="only this agent's suite")
+    p.set_defaults(fn=cmd_eval)
+
+    p = sub.add_parser("review", help="list pending drafts, or publish or reject one (as you)")
+    p.add_argument("draft_id", nargs="?")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--publish", action="store_true")
+    g.add_argument("--reject", action="store_true")
+    p.add_argument("--body-file", help="publish this edited text instead of the draft")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_review)
 
     p = sub.add_parser("report", help="spend per agent, run and requester, with findings to act on")
     p.add_argument("--dsn")

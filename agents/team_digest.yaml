@@ -8,3 +8,4 @@ capabilities: [read_tasks, read_updates, write_drafts]
 triggers:
   schedule: "0 * * * *"
 suite: evals/team_digest
+minutes_per_output: 15

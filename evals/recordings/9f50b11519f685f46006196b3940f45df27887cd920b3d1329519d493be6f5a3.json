@@ -1,0 +1,8 @@
+{
+  "latency_ms": 2100,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 116,
+  "prompt_tokens": 355,
+  "provider": "nvidia",
+  "text": "Team core \u2014 2026-11-03\n\nWhat moved\n- Fix flaky checkout test (owner: aiko): dev paired with aiko and identified a race condition in the test setup as the likely root cause.\n\nWhat is blocked\n- Fix flaky checkout test (owner: aiko): blocked pending resolution of the race condition in setup.\n\nWaiting on\n- Fix flaky checkout test: aiko to address the race condition; dev available to continue pairing.\n\nIn progress\n- Ship rate limiter (owner: dev): work continues."
+}

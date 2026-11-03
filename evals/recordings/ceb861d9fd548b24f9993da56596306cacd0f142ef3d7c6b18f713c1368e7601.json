@@ -1,0 +1,8 @@
+{
+  "latency_ms": 2126,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 53,
+  "prompt_tokens": 239,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The reply promises to restore the backup immediately and states the project will be offline, which is a direct promise of action rather than explaining what the customer can do and that a support engineer will follow up.\"}"
+}

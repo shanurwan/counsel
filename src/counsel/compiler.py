@@ -106,6 +106,29 @@ def grants_for(agent: Agent) -> list[str]:
     return seen
 
 
+def _sql_number(value: float | int | None) -> str:
+    return "null" if value is None else repr(value)
+
+
+SETTINGS_BLOCK = """
+-- Per-agent settings for the value ledger and budgets (0008_ledger.sql).
+insert into counsel.agent_settings (agent, owner, minutes_per_output, budget_usd) values
+  {rows}
+on conflict (agent) do update set owner = excluded.owner,
+  minutes_per_output = excluded.minutes_per_output, budget_usd = excluded.budget_usd;
+delete from counsel.agent_settings where agent not in ({names});
+"""
+
+
+def settings_sql(agents: list[Agent]) -> str:
+    """What the value ledger and budgets read: one row per registered agent."""
+    ordered = sorted(agents, key=lambda a: a.name)
+    rows = ",\n  ".join(
+        "('{}', '{}', {}, {})".format(a.name, a.owner, _sql_number(a.minutes_per_output), _sql_number(a.budget_usd))
+        for a in ordered)
+    return SETTINGS_BLOCK.format(rows=rows, names=", ".join(f"'{a.name}'" for a in ordered))
+
+
 def compile_sql(agents: list[Agent]) -> str:
     out = [HEADER.format(group=GROUP_ROLE, runtime=RUNTIME_ROLE, orchestrator=ORCHESTRATOR_ROLE)]
     for agent in sorted(agents, key=lambda a: a.name):
@@ -119,4 +142,5 @@ def compile_sql(agents: list[Agent]) -> str:
             runtime=RUNTIME_ROLE,
             grants="\n".join(grants_for(agent)),
         ))
+    out.append(settings_sql(agents))
     return "".join(out)

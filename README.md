@@ -29,14 +29,18 @@ a dangerous attribute (`LOGIN`, `BYPASSRLS`, `CREATEROLE`, ...), an unexpected
 membership, owned objects, an executable `SECURITY DEFINER` function, or that
 is not in the registry.
 
-## Four walls
+## Three walls
 
-| Wall | Where | Status |
-|---|---|---|
-| No tool takes an owner, due date or status | runtime tool registry | planned |
-| The credential cannot do it | [`agents/*.yaml`](agents) → [`counsel compile`](src/counsel/compiler.py) → [`db/generated/agents.sql`](db/generated/agents.sql) | done |
-| The database refuses it, even after a mistaken grant | [`db/migrations/0002_guards.sql`](db/migrations/0002_guards.sql) | done |
-| CI proves it on every push | [`counsel audit`](src/counsel/audit.py), [`tests/`](tests), [`ci.yml`](.github/workflows/ci.yml) | done |
+| Wall | Where |
+|---|---|
+| The credential cannot do it | [`agents/*.yaml`](agents) → [`counsel compile`](src/counsel/compiler.py) → [`db/generated/agents.sql`](db/generated/agents.sql) |
+| The database refuses it, even after a mistaken grant | [`db/migrations/0002_guards.sql`](db/migrations/0002_guards.sql) |
+| CI proves it on every push | [`counsel audit`](src/counsel/audit.py), [`tests/`](tests), the [incident bench](#incident-bench), [`ci.yml`](.github/workflows/ci.yml) |
+
+There is deliberately no fourth wall in Python. When a model calls a tool, the
+tool layer ([`tools.py`](src/counsel/tools.py)) passes any verb on any table
+through to Postgres. So the agent's role is the whole policy, and there's no
+filter someone could loosen.
 
 Design and trade-offs: [ADR-001](docs/adr/001-commitment-walls.md).
 
@@ -117,7 +121,34 @@ CI runs the bench on every push. A failed or invalid case blocks the merge.
 Full write-up: [docs/bench.md](docs/bench.md). Latest results:
 [bench/RESULTS.md](bench/RESULTS.md).
 
-## Cost and tracing
+## Evals
+
+Nothing ships unless its golden suite passes. `counsel eval` runs each shipped
+agent's suite through the real runtime on a fresh database, and the checks
+read what was written. The pieces:
+
+- **Deterministic checks.** Citations exist, "not covered" means no model
+  call, and no task is called done when its status isn't.
+- **A judge model** for tone, credit and offering an action. It is trusted
+  only while it agrees with 18 hand labels (Cohen's κ, currently 0.89).
+- **Harm checks on every case.**
+- **A gate on the Wilson 95% lower bound**, so a small suite can't pass on
+  luck. Every safety case must also pass.
+
+| Suite | Passed | 95% interval |
+|---|--:|--:|
+| ask_handbook | 13 of 13 | 77–100% |
+| support_drafter | 12 of 12 | 76–100% |
+| team_digest | 10 of 11 | 62–98% |
+
+The digest suite's first run failed the gate. The digest credited one
+person's work to the task's owner, and repeated blame from the notes ("Bruno
+missed the deadline again"). The credit failure was a data bug: the digest's
+input never included who wrote each note. The fix is in, and the one failure
+left is reported, not hidden. CI replays recorded Nemotron responses, so it
+needs no key. Details: [docs/evals.md](docs/evals.md).
+
+## Cost, value and tracing
 
 Every model call is recorded with its tokens, latency, model and run. The
 pieces that turn that log into decisions:
@@ -129,8 +160,12 @@ pieces that turn that log into decisions:
 - **The report.** `counsel report` ranks the answers as findings. Each finding
   has evidence, an owner, an action and a monthly figure.
 - **Tracing.** `counsel trace <run>` exports a run as OpenTelemetry spans.
-- **Owner settings.** Owners set `budget_usd` and `cache_hours` in the agent's
-  YAML. The cache is allowed at T0 only.
+- **Owner settings.** Owners set `budget_usd`, `cache_hours` and
+  `minutes_per_output` in the agent's YAML. The cache is allowed at T0 only.
+- **Value ledger.** An output counts only once a person accepts it: an
+  answered question, or a draft published with `counsel review`. Its worth is
+  the owner's estimate of the minutes it saves. The ledger shows hours
+  absorbed against spend, and how many drafts people rejected or edited.
 - **Dashboard and alerts.** Grafana reads the same views through
   `counsel_reader`, which sees dollars and run metadata but never a prompt or
   a ticket. Alerts cover refusals, budget, billed-but-unused calls and dead
@@ -143,14 +178,21 @@ finding, a cache on the handbook agent, gave these results:
 | | Before | After |
 |---|--:|--:|
 | Handbook agent spend | $0.1561 | $0.0414 (−73%) |
-| Paid model calls | 1,266 | 732 (−42%) |
+| Paid model calls | 1,245 | 711 (−43%) |
 | Answers that changed | | 0 of 798 |
+| Hours of work absorbed (owner estimates) | 146.4 | 146.4 |
 
 The dollars are small because the prices are assumed and the handbook is
 short. What matters is the percentages, and they depend on how often this
 synthetic workload repeats questions. Details and limits:
 [docs/cost.md](docs/cost.md). Sample report:
 [cost/before/REPORT.md](cost/before/REPORT.md).
+
+The live dashboard, reading the production database as `counsel_reader`:
+
+![Spend, projection, cache savings and refused runs](docs/img/grafana-1-spend.png)
+![Paid calls, cache hits and tokens per day; the most expensive runs](docs/img/grafana-2-trends.png)
+![Each run with its replay command; billed-but-unused calls; spend by requester](docs/img/grafana-3-runs.png)
 
 ## How a run works
 
@@ -168,6 +210,7 @@ event row / schedule ──> counsel.jobs (idempotency key, lease)
 counsel ask "How many days of leave do I get?"   # an event: enqueues ask_handbook
 counsel tick                                      # what Cloud Run runs every 30 minutes
 counsel replay <run_id>                           # every step, prompt, response and audit entry
+counsel review [<draft> --publish|--reject]        # the human gate: a person publishes or rejects each draft
 ```
 
 A live run on Supabase answered "18 days … up to 5 days carries over
@@ -193,20 +236,6 @@ pre-commit hook is in `.pre-commit-config.yaml`.
 Runs on the Supabase, GCP and NVIDIA free tiers by construction, with a budget
 alert and a billing hard stop behind it. The numbers and the worst case are in
 [docs/free-tier.md](docs/free-tier.md).
-
-## Status
-
-| Part | Status |
-|---|---|
-| Schema, agent roles, guards, privilege audit, CI | done |
-| Runtime: leased job queue, step journal, NVIDIA adapter with fallback, replay ([ADR-002](docs/adr/002-runtime.md)) | done |
-| Agents live: `ask_handbook` (event), `team_digest` (schedule), `support_drafter` (event, RLS-scoped to one ticket) | done |
-| Cloud Run + one Scheduler tick + keyless deploys (Workload Identity) | done, live |
-| Incident bench: seven real incidents, control arm, recorded Nemotron | done |
-| Cost and tracing: per-run spend, report queries, OpenTelemetry export, synthetic month | done |
-| Evaluation gate: golden suites, safety cases, calibrated judge | planned |
-| GCP foundation in Terraform: registries, secrets, BigQuery, identities, budget with a tested hard stop | done |
-| Contact budget, value ledger | planned |
 
 All data is synthetic (a made-up company, Harbor Labs). Counsel has no real
 users.

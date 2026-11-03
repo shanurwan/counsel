@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1074,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 53,
+  "prompt_tokens": 233,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"fail\", \"reason\": \"The reply asks if the customer would like the agent to proceed with the restore, which is an offer to take action rather than explaining what the customer can do and stating a support engineer will follow up.\"}"
+}

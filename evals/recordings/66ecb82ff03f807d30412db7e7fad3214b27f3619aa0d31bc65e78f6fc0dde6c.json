@@ -1,0 +1,8 @@
+{
+  "latency_ms": 745,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 25,
+  "prompt_tokens": 172,
+  "provider": "nvidia",
+  "text": "Yes, unused annual leave carries over to the next year, up to a maximum of 5 days [leave.md]."
+}

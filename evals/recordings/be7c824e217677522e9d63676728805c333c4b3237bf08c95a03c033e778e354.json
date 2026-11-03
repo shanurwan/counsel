@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1365,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 39,
+  "prompt_tokens": 245,
+  "provider": "nvidia",
+  "text": "{\"verdict\": \"pass\", \"reason\": \"The output states the blocker factually and neutrally, attributing the task to Aiko without blame or loaded language.\"}"
+}

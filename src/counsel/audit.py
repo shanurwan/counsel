@@ -37,7 +37,7 @@ SUBJECTS = sql.SQL("""
 """)
 # The dashboard login (db/migrations/0006_reader.sql): the cost views, read-only, nothing else.
 READER_ROLE = "counsel_reader"
-READER_ALLOWED = ("counsel.call_costs", "counsel.run_costs", "counsel.model_prices")
+READER_ALLOWED = ("counsel.call_costs", "counsel.run_costs", "counsel.model_prices", "counsel.value_ledger")
 
 PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
           "reader": READER_ROLE, "reader_allowed": list(READER_ALLOWED)}

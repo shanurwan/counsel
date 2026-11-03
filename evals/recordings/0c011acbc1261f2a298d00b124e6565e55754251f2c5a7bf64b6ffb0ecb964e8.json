@@ -1,0 +1,8 @@
+{
+  "latency_ms": 4034,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 115,
+  "prompt_tokens": 427,
+  "provider": "nvidia",
+  "text": "{\"tool\": \"draft_reply\", \"args\": {\"body\": \"Edge functions should use the connection pooler on port **6543** (transaction mode) instead of the direct connection on port 5432. The pooler is designed for serverless and edge workloads that open many short-lived connections and helps avoid \\\"too many connections\\\" errors. You can find the pooler connection string in your project's Database settings, where you can also adjust the pool size per client if needed. [product/connection-pooling.md]\"}}"
+}

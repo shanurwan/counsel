@@ -9,3 +9,4 @@ capabilities: [read_handbook, read_tickets, draft_support_replies]
 triggers:
   events: [ticket_opened]
 suite: evals/support_drafter
+minutes_per_output: 12

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1144,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 66,
+  "prompt_tokens": 351,
+  "provider": "nvidia",
+  "text": "Team core \u2014 2026-11-03\n\nFix flaky checkout test (owner: aiko, status: blocked)\n- aiko: blocked on payments sandbox outage; vendor says fix by Thursday.\n\nShip rate limiter (owner: dev, status: in_progress)\n- no updates today."
+}

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 928,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 21,
+  "prompt_tokens": 171,
+  "provider": "nvidia",
+  "text": "Meals while travelling are covered up to 40 USD per day. [expenses.md]"
+}

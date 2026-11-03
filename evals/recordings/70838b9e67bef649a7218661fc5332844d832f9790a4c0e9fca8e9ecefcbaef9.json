@@ -1,0 +1,8 @@
+{
+  "latency_ms": 1526,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 48,
+  "prompt_tokens": 365,
+  "provider": "nvidia",
+  "text": "Core team digest:\n\n- Ship rate limiter (owner: dev, in_progress): dev merged the token bucket implementation behind a feature flag.\n- Fix flaky checkout test (owner: aiko, blocked): no updates; remains blocked."
+}

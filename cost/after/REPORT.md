@@ -1,6 +1,6 @@
 # Agent spend report: synthetic October, after the cache
 
-Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.2686** (projected month: $0.2599).  Saved by cache: $0.1147.
+Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.3280** (projected month: $0.3174).  Saved by cache: $0.1147.
 
 > Synthetic workload: Harbor Labs, 80 employees, 24 customers, 30 days. Real worker, roles, journal and cost log; the model is simulated (deterministic, usage from text length) and priced at the assumed rates in counsel.model_prices. Counsel runs on NVIDIA's free tier, so its actual spend is $0.
 
@@ -12,35 +12,35 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.2686** (proje
 
 - **Evidence:** From: customer:cust19 (4), customer:cust12 (1), customer:cust18 (1). First refusal: tool select support.integration_tokens: permission denied for table integration_tokens. Nothing was read or written; each run stopped at the refusal ($0.0021 spent).
 - **Action:** No rotation needed: nothing was exposed. Read one with `counsel replay <run>` to see the instruction that tried it, and tell the customer's account owner.
-- **Runs:** `140da9b9-0475-474c-98c1-e98ad7e42405`, `1f415805-c589-4e47-a157-9eb0fc58fcac`, `89a8e007-10f9-45d1-bdb8-96e55bc7792c`
+- **Runs:** `f3c6aac0-b21c-4b37-94a1-7a48b9648be6`, `104197ff-e210-43a8-8da9-8a897dcbfd6b`, `efe54bd3-a0f9-4d88-83e6-01803ec9adec`
 
-### 2. support_drafter makes a second model call in 40% of runs
+### 2. team_digest: 75 billed calls produced nothing (output truncated at max_tokens=400)
+
+*waste · owner: platform · worth ~$0.0645/month (70% of the agent's spend)*
+
+- **Evidence:** 75 calls across 25 runs were cut off and discarded, $0.0667. A retry sends the same prompt with the same limit, so it is cut off again. 25 runs failed every attempt and wrote nothing.
+- **Action:** Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.
+- **Runs:** `1ed69147-679e-4c42-9702-998e843fca50`, `248743c9-09b7-4553-be09-dc8f44f13584`, `24d1a042-ed4a-480c-9d89-88a7ca1af18b`
+
+### 3. support_drafter makes a second model call in 40% of runs
 
 *cost · owner: support · worth ~$0.0611/month (33% of the agent's spend)*
 
 - **Evidence:** 117 of 294 runs (40%) called a tool before drafting. Each later turn re-sends the whole conversation, 534 input tokens against 482 for the first. Later turns cost $0.0631 of $0.1909.
 - **Action:** Give the model what it keeps asking for in the first prompt (for the support drafter, the ticket thread), so most runs draft in one call. Upper bound on the saving shown.
 
-### 3. ask_handbook pays for the same answer again
+### 4. ask_handbook pays for the same answer again
 
 *cost · owner: people-ops · worth ~$0.0232/month (58% of the agent's spend)*
 
 - **Evidence:** 116 of 205 paid calls (57%) repeated a request already answered in the window (68 distinct requests), $0.0239. Same prompt, same documents, so the same answer.
 - **Action:** ask_handbook already caches for 168 h; these repeats fell outside it. Lengthen cache_hours if answers can be that old.
 
-### 4. team_digest: 12 billed calls produced nothing (output truncated at max_tokens=400)
-
-*waste · owner: platform · worth ~$0.0101/month (29% of the agent's spend)*
-
-- **Evidence:** 12 calls across 4 runs were cut off and discarded, $0.0105. A retry sends the same prompt with the same limit, so it is cut off again. 4 runs failed every attempt and wrote nothing.
-- **Action:** Raise max_tokens for this call, or shorten its input; do not retry a truncation unchanged.
-- **Runs:** `7433cfd1-9008-43da-8740-1052eb0f8846`, `b154ca1d-b194-40c2-8c2d-41e0f0699dfd`, `ed07ecad-8e01-4eef-9f76-1fb63c4d6e5c`
-
 ### 5. team_digest pays for the same answer again
 
-*cost · owner: platform · worth ~$0.0066/month (19% of the agent's spend)*
+*cost · owner: platform · worth ~$0.0063/month (7% of the agent's spend)*
 
-- **Evidence:** 45 of 116 paid calls (39%) repeated a request already answered in the window (4 distinct requests), $0.0069. Same prompt, same documents, so the same answer.
+- **Evidence:** 28 of 95 paid calls (29%) repeated a request already answered in the window (3 distinct requests), $0.0065. Same prompt, same documents, so the same answer.
 - **Action:** The same input produced the same output again (a quiet day resends identical activity). Skip the run when nothing changed since the last one; caching is T0 only and team_digest is T1.
 
 ### 6. customer:cust19 drives 65% of support_drafter spend
@@ -55,8 +55,18 @@ Window: 2026-10-01 to 2026-11-01 (UTC).  Runs: 1,846.  Spend: **$0.2686** (proje
 | Agent | Owner | Runs | Calls | Cache hits | Tokens in / out | Spend | Per 1k runs | p95 run | Month (proj.) | Budget |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | support_drafter | support | 328 | 411 | 0 | 204,115 / 37,992 | $0.1909 | $0.5819 | $0.0009 | $0.1847 | none |
+| team_digest | platform | 720 | 95 | 0 | 52,880 / 35,540 | $0.0957 | $0.1329 | $0.0004 | $0.0926 | none |
 | ask_handbook | people-ops | 798 | 205 | 534 | 43,596 / 8,467 | $0.0414 | $0.0519 | $0.0002 | $0.0401 | none |
-| team_digest | platform | 720 | 116 | 0 | 27,808 / 10,904 | $0.0363 | $0.0504 | $0.0003 | $0.0351 | none |
+
+## Value ledger
+
+**146.4 hours** of work absorbed for $0.3280 of model spend. An output counts only once a person accepted it (an answered question, a published draft); its worth is the owner's estimate in `minutes_per_output`, not a measurement.
+
+| Agent | Owner | Runs | Accepted | Rejected | Edited before publishing | Minutes each | Hours absorbed | Spend | Per hour absorbed |
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| ask_handbook | people-ops | 798 | 739 | 0 of 0 | 0 | 6 | 73.9 | $0.0414 | $0.0006 |
+| support_drafter | support | 328 | 249 | 73 of 322 | 0 | 12 | 49.8 | $0.1909 | $0.0038 |
+| team_digest | platform | 720 | 91 | 4 of 95 | 0 | 15 | 22.8 | $0.0957 | $0.0042 |
 
 ---
 Generated by `counsel report` from counsel.model_calls; queries in `db/reports/`. Prices: counsel.model_prices.
