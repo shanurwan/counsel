@@ -77,7 +77,7 @@ ol.steps > li::after { content: ""; position: absolute; left: 6px; top: 20px; bo
 ol.steps > li:last-child::after { display: none; }
 ol.steps > li.run::before { background: var(--accent); }
 ol.steps > li.denied::before { background: var(--fail); }
-ol.steps > li.allowed::before, ol.steps > li.approved::before { background: var(--pass); }
+ol.steps > li.allowed::before, ol.steps > li.person::before { background: var(--pass); }
 .name { font: 13px/1.6 var(--mono); }
 .name .who { color: var(--muted); }
 .denied .name { color: var(--fail); }
@@ -131,7 +131,7 @@ const el = (tag, props = {}, ...kids) => {
   for (const k of kids.flat()) if (k != null) n.append(k);
   return n;
 };
-const title = id => (id.charAt(0).toUpperCase() + id.slice(1)).replaceAll("_", " ");
+const title = id => (id.charAt(0).toUpperCase() + id.slice(1)).replaceAll("_", " ").replace(/sso/i, "SSO");
 const key = r => `${r.agent}/${r.case}`;
 const HARM = ["No commitment changed", "Nothing sent to a customer", "No token in any output"];
 
@@ -181,13 +181,20 @@ function show(r) {
   const failed = r.failures || [];
   const harm = new Set(failed.filter(f => f.startsWith("harm:")));
   const timeline = el("ol", { class: "steps" });
-  r.journal.forEach((run, i) => {
-    timeline.append(el("li", { class: `run ${run.status === "denied" ? "denied" : ""}` },
-      el("div", { class: "name" }, `run ${i + 1}`, el("span", { class: "who", text: `  agent_${run.agent} · ${run.status}` })),
-      run.error ? el("pre", { text: run.error }) : null));
-    run.steps.forEach(s => timeline.append(step(s)));
-    run.audit.forEach(a => timeline.append(audit(a)));
-  });
+  const said = new Set(r.journal.flatMap(e => (e.steps || []).map(s => s.response)));
+  for (const e of r.journal) {
+    if (e.review) {
+      timeline.append(el("li", { class: e.review === "published" ? "person" : "denied" },
+        el("div", { class: "name" }, e.review === "published" ? "approve" : "reject", el("span", { class: "who", text: "  a person" })),
+        el("div", { class: "text", text: e.body })));
+      continue;
+    }
+    timeline.append(el("li", { class: `run ${e.status === "succeeded" ? "" : "denied"}` },
+      el("div", { class: "name" }, `agent_${e.agent}`, el("span", { class: "who", text: `  ${e.status}` })),
+      e.error ? el("pre", { text: e.error }) : null));
+    e.steps.forEach(s => timeline.append(step(s)));
+    e.audit.forEach(a => timeline.append(audit(a)));
+  }
   root.replaceChildren(
     el("a", { class: "back", href: "#", text: "‹ Cases" }),
     el("h1", { text: title(r.case) }),
@@ -197,6 +204,7 @@ function show(r) {
       el("span", { class: `tag ${r.passed ? "pass" : "fail"}`, text: r.passed ? "pass" : "fail" })),
     el("h3", { text: "Input" }), el("p", { class: "input", text: r.input.trim() }),
     el("h3", { text: "Journal" }), timeline,
+    ...(r.output && !said.has(r.output) ? [el("h3", { text: "Output" }), el("p", { class: "input", text: r.output.trim() })] : []),
     el("h3", { text: "Checks" }),
     el("ul", { class: "checks" },
       failed.filter(f => !harm.has(f)).map(f => el("li", { class: "fail", text: f })),
@@ -231,9 +239,8 @@ document.addEventListener("keydown", e => {
 
 fetch("replay.json").then(r => r.json()).then(report => {
   // Safety cases first within each agent: they are where the walls show.
-  cases = report.results.slice().sort((a, b) => (a.agent === b.agent ? b.safety - a.safety : 0));
-  const order = [...new Set(cases.map(r => r.agent))];
-  cases.sort((a, b) => order.indexOf(a.agent) - order.indexOf(b.agent) || b.safety - a.safety);
+  const order = Object.keys(report.suites);
+  cases = report.results.slice().sort((a, b) => order.indexOf(a.agent) - order.indexOf(b.agent) || b.safety - a.safety);
   list(report);
   addEventListener("hashchange", route);
   route();

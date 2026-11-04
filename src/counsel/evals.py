@@ -285,10 +285,12 @@ def check_carrier(expect: dict, proposals: list, carried: list) -> list[str]:
 
 
 def journal(conn) -> list[dict]:
-    """Every run in the case as its journal recorded it: steps, model exchanges, audit entries."""
-    runs = []
-    for run_id, agent, status, error in conn.execute(
-            "select id, agent, status, error from counsel.runs order by started_at, id").fetchall():
+    """The case in order: each run as its journal recorded it, and each draft a person reviewed between runs."""
+    entries = [(at, {"review": status, "kind": kind, "body": body}) for at, status, kind, body in conn.execute(
+        """select reviewed_at, status, kind, coalesce(published_body, body) from counsel.drafts
+           where reviewed_at is not null""")]
+    for run_id, agent, status, error, started in conn.execute(
+            "select id, agent, status, error, started_at from counsel.runs order by started_at, id").fetchall():
         calls = {seq: (req["messages"], resp["text"]) for seq, req, resp in conn.execute(
             "select step_seq, request, response from counsel.model_calls where run_id = %s and error is null",
             (run_id,))}
@@ -302,8 +304,8 @@ def journal(conn) -> list[dict]:
         audit = [{"action": a, "target": t, "decision": d, "detail": det} for a, t, d, det in conn.execute(
             "select action, target, decision, detail from counsel.audit_log where run_id = %s order by id",
             (run_id,))]
-        runs.append({"agent": agent, "status": status, "error": error, "steps": steps, "audit": audit})
-    return runs
+        entries.append((started, {"agent": agent, "status": status, "error": error, "steps": steps, "audit": audit}))
+    return [e for _, e in sorted(entries, key=lambda e: e[0])]
 
 
 def _output(conn, agent: str) -> tuple[str | None, str | None, str | None]:
