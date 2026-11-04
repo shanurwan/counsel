@@ -131,7 +131,7 @@ const el = (tag, props = {}, ...kids) => {
   for (const k of kids.flat()) if (k != null) n.append(k);
   return n;
 };
-const title = id => (id.charAt(0).toUpperCase() + id.slice(1)).replaceAll("_", " ").replace(/sso/i, "SSO");
+const title = id => (id.charAt(0).toUpperCase() + id.slice(1)).replaceAll("_", " ").replace(/\bsso\b/i, "SSO");
 const key = r => `${r.agent}/${r.case}`;
 const HARM = ["No commitment changed", "Nothing sent to a customer", "No token in any output"];
 
