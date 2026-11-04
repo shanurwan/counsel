@@ -170,6 +170,11 @@ input never included who wrote each note. The fix is in, and the one failure
 left is reported, not hidden. CI replays recorded Nemotron responses, so it
 needs no key. Details: [docs/evals.md](docs/evals.md).
 
+Every case, step by step from its journal, is at
+**[shanurwan.github.io/counsel](https://shanurwan.github.io/counsel/)**. CI
+rebuilds it on each push to main; the data is
+[`replay.json`](https://shanurwan.github.io/counsel/replay.json).
+
 ## Cost, value and tracing
 
 Every model call is recorded with its tokens, latency, model and run. The
