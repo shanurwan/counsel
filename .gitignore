@@ -12,3 +12,5 @@ __pycache__/
 !*.tfvars.example
 tfplan
 .build/
+evals/replay.json
+_site/

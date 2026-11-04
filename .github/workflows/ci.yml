@@ -78,6 +78,15 @@ jobs:
             cat evals/RESULTS.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Build the replay site from this run's journal
+        run: |
+          mkdir _site
+          cp site/index.html evals/replay.json _site/
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
       - name: Cost benchmark (a synthetic month, twice)
         run: |
           counsel simulate --out cost > /dev/null
@@ -88,6 +97,24 @@ jobs:
           name: counsel-cost
           path: cost/
           if-no-files-found: error
+
+  pages:
+    name: publish the replay
+    needs: commitments
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write # Pages verifies the deployment came from this workflow
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   deploy:
     name: deploy to Cloud Run

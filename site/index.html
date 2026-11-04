@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counsel Replay</title>
+<meta name="description" content="Every eval case Counsel runs in CI, replayed from its journal.">
+<link rel="alternate" type="application/json" href="replay.json" title="Every case, as JSON">
+<style>
+:root {
+  --bg: #fbfbfa; --panel: #f3f3f1; --line: #e6e6e3; --text: #1b1b1a; --muted: #73736f;
+  --pass: #2f8f5b; --fail: #c4423a; --accent: #4e5ae8; --code: #f0f0ed;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111112; --panel: #18181a; --line: #29292c; --text: #ececea; --muted: #8d8d89;
+    --pass: #4cb97c; --fail: #ec6b62; --accent: #8c94ff; --code: #1d1d20; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111112; --panel: #18181a; --line: #29292c; --text: #ececea; --muted: #8d8d89;
+  --pass: #4cb97c; --fail: #ec6b62; --accent: #8c94ff; --code: #1d1d20; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  display: grid; grid-template-columns: 272px 1fr;
+}
+a { color: inherit; text-decoration: none; }
+
+/* the list */
+nav {
+  height: 100vh; overflow-y: auto; position: sticky; top: 0;
+  background: var(--panel); border-right: 1px solid var(--line); padding: 14px 8px 40px;
+}
+nav header { display: flex; align-items: center; justify-content: space-between; padding: 2px 10px 14px; }
+nav header strong { font-size: 15px; letter-spacing: -0.01em; }
+nav header a { color: var(--muted); display: flex; }
+nav header a:hover { color: var(--text); }
+nav h2 {
+  display: flex; justify-content: space-between; margin: 18px 10px 4px;
+  font: 500 12px/1.4 var(--mono); color: var(--muted);
+}
+nav ol { list-style: none; margin: 0; padding: 0; }
+nav li a {
+  display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 6px;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+nav li a:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+nav li a[aria-current] { background: color-mix(in srgb, var(--text) 9%, transparent); }
+.dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--pass); }
+.dot.fail { background: var(--fail); }
+
+/* the case */
+main { min-width: 0; padding: 56px 32px 120px; }
+article { max-width: 720px; margin: 0 auto; }
+.back { display: none; color: var(--muted); margin-bottom: 20px; }
+h1 { font-size: 24px; line-height: 1.25; letter-spacing: -0.02em; margin: 0 0 8px; font-weight: 600; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 36px; }
+.tag { font: 12px/1 var(--mono); padding: 5px 7px; border-radius: 5px; background: var(--code); color: var(--muted); }
+.tag.pass { color: var(--pass); } .tag.fail { color: var(--fail); }
+h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 36px 0 10px; }
+.input { white-space: pre-wrap; border-left: 2px solid var(--line); padding: 2px 0 2px 14px; margin: 0; }
+
+ol.steps { list-style: none; margin: 0; padding: 0; position: relative; }
+ol.steps > li { position: relative; padding: 0 0 18px 22px; }
+ol.steps > li::before {
+  content: ""; position: absolute; left: 3px; top: 8px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted);
+}
+ol.steps > li::after { content: ""; position: absolute; left: 6px; top: 20px; bottom: 2px; width: 1px; background: var(--line); }
+ol.steps > li:last-child::after { display: none; }
+ol.steps > li.run::before { background: var(--accent); }
+ol.steps > li.denied::before { background: var(--fail); }
+ol.steps > li.allowed::before, ol.steps > li.approved::before { background: var(--pass); }
+.name { font: 13px/1.6 var(--mono); }
+.name .who { color: var(--muted); }
+.denied .name { color: var(--fail); }
+.text { white-space: pre-wrap; margin-top: 6px; }
+pre {
+  font: 12px/1.6 var(--mono); background: var(--code); border-radius: 8px; padding: 12px 14px; margin: 8px 0 0;
+  white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto;
+}
+details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 6px; width: fit-content; }
+details summary:hover { color: var(--text); }
+details .role { font: 11px var(--mono); color: var(--muted); margin-top: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+ul.checks { list-style: none; margin: 0; padding: 0; }
+ul.checks li { display: flex; gap: 10px; padding: 3px 0; }
+ul.checks li::before { content: "✓"; color: var(--pass); flex: none; width: 14px; }
+ul.checks li.fail::before { content: "✕"; color: var(--fail); }
+
+/* replay */
+.reveal { animation: in 0.35s both cubic-bezier(.2, .7, .2, 1); }
+@keyframes in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .reveal { animation: none; } }
+
+@media (max-width: 760px) {
+  body { display: block; }
+  nav { height: auto; position: static; border-right: 0; min-height: 100vh; }
+  main { display: none; padding: 20px 16px 80px; }
+  body.reading nav { display: none; }
+  body.reading main { display: block; }
+  .back { display: inline-block; }
+}
+</style>
+</head>
+<body>
+<nav aria-label="Cases">
+  <header>
+    <strong>Counsel</strong>
+    <a href="https://github.com/shanurwan/counsel" aria-label="Source on GitHub">
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+  </header>
+  <div id="list"></div>
+</nav>
+<main><article id="case"></article></main>
+<script>
+"use strict";
+const el = (tag, props = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else n.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null) n.append(k);
+  return n;
+};
+const title = id => (id.charAt(0).toUpperCase() + id.slice(1)).replaceAll("_", " ");
+const key = r => `${r.agent}/${r.case}`;
+const HARM = ["No commitment changed", "Nothing sent to a customer", "No token in any output"];
+
+let cases = [];
+
+function list(report) {
+  const root = document.getElementById("list");
+  const groups = Object.groupBy ? Object.groupBy(cases, r => r.agent)
+    : cases.reduce((g, r) => ((g[r.agent] ||= []).push(r), g), {});
+  for (const [agent, rs] of Object.entries(groups)) {
+    const s = report.suites[agent];
+    root.append(
+      el("h2", {}, el("span", { text: agent }), el("span", { text: `${s.passed}/${s.n}` })),
+      el("ol", {}, rs.map(r => el("li", {}, el("a", { href: `#${key(r)}`, "data-key": key(r) },
+        el("span", { class: r.passed ? "dot" : "dot fail" }), title(r.case))))));
+  }
+}
+
+function expectations(expect) {
+  return Object.entries(expect).map(([k, v]) => {
+    const value = typeof v === "object" ? JSON.stringify(v).replace(/[{}"[\]]/g, "").replaceAll(",", ", ").replaceAll(":", ": ") : String(v);
+    return `${k.replaceAll("_", " ")}: ${value}`;
+  });
+}
+
+function step(s, who) {
+  const li = el("li", {}, el("div", { class: "name" }, s.name, who ? el("span", { class: "who", text: `  ${who}` }) : null));
+  if (s.response != null) {
+    li.append(el("div", { class: "text", text: s.response }),
+      el("details", {}, el("summary", { text: "Prompt" }),
+        s.messages.map(m => [el("div", { class: "role", text: m.role }), el("pre", { text: m.content })])));
+  } else if (s.output != null) {
+    li.append(el("details", {}, el("summary", { text: "Output" }), el("pre", { text: JSON.stringify(s.output, null, 2) })));
+  }
+  return li;
+}
+
+function audit(a) {
+  const detail = a.detail && Object.keys(a.detail).length ? JSON.stringify(a.detail, null, 2) : null;
+  return el("li", { class: a.decision },
+    el("div", { class: "name" }, `${a.decision} ${a.action}`, a.target ? el("span", { class: "who", text: `  ${a.target}` }) : null),
+    detail ? el("pre", { text: detail }) : null);
+}
+
+function show(r) {
+  const root = document.getElementById("case");
+  const failed = r.failures || [];
+  const harm = new Set(failed.filter(f => f.startsWith("harm:")));
+  const timeline = el("ol", { class: "steps" });
+  r.journal.forEach((run, i) => {
+    timeline.append(el("li", { class: `run ${run.status === "denied" ? "denied" : ""}` },
+      el("div", { class: "name" }, `run ${i + 1}`, el("span", { class: "who", text: `  agent_${run.agent} · ${run.status}` })),
+      run.error ? el("pre", { text: run.error }) : null));
+    run.steps.forEach(s => timeline.append(step(s)));
+    run.audit.forEach(a => timeline.append(audit(a)));
+  });
+  root.replaceChildren(
+    el("a", { class: "back", href: "#", text: "‹ Cases" }),
+    el("h1", { text: title(r.case) }),
+    el("div", { class: "meta" },
+      el("span", { class: "tag", text: r.agent }),
+      r.safety ? el("span", { class: "tag", text: "safety" }) : null,
+      el("span", { class: `tag ${r.passed ? "pass" : "fail"}`, text: r.passed ? "pass" : "fail" })),
+    el("h3", { text: "Input" }), el("p", { class: "input", text: r.input.trim() }),
+    el("h3", { text: "Journal" }), timeline,
+    el("h3", { text: "Checks" }),
+    el("ul", { class: "checks" },
+      failed.filter(f => !harm.has(f)).map(f => el("li", { class: "fail", text: f })),
+      r.passed ? expectations(r.expect).map(e => el("li", { text: e })) : null,
+      HARM.map((h, i) => el("li", { class: [...harm].some(f => f.includes(["commitment", "customer", "token"][i])) ? "fail" : "", text: h }))));
+  [...root.children].concat([...timeline.children]).forEach((n, i) => {
+    if (n === timeline) return;
+    n.classList.add("reveal");
+    n.style.animationDelay = `${Math.min(i, 30) * 45}ms`;
+  });
+  document.querySelectorAll("nav a[aria-current]").forEach(a => a.removeAttribute("aria-current"));
+  const link = document.querySelector(`nav a[data-key="${CSS.escape(key(r))}"]`);
+  if (link) { link.setAttribute("aria-current", "page"); link.scrollIntoView({ block: "nearest" }); }
+  document.title = `${title(r.case)} · Counsel Replay`;
+}
+
+function route() {
+  const k = decodeURIComponent(location.hash.slice(1));
+  const r = cases.find(c => key(c) === k);
+  document.body.classList.toggle("reading", !!r);
+  if (r) { show(r); window.scrollTo(0, 0); }
+  else if (matchMedia("(min-width: 761px)").matches && cases.length) show(cases[0]);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || !["j", "k", "ArrowDown", "ArrowUp"].includes(e.key)) return;
+  const current = document.querySelector("nav a[aria-current]");
+  const i = cases.findIndex(c => current && key(c) === current.dataset.key);
+  const next = cases[Math.max(0, Math.min(cases.length - 1, i + (e.key === "j" || e.key === "ArrowDown" ? 1 : -1)))];
+  if (next) { e.preventDefault(); location.hash = key(next); }
+});
+
+fetch("replay.json").then(r => r.json()).then(report => {
+  // Safety cases first within each agent: they are where the walls show.
+  cases = report.results.slice().sort((a, b) => (a.agent === b.agent ? b.safety - a.safety : 0));
+  const order = [...new Set(cases.map(r => r.agent))];
+  cases.sort((a, b) => order.indexOf(a.agent) - order.indexOf(b.agent) || b.safety - a.safety);
+  list(report);
+  addEventListener("hashchange", route);
+  route();
+});
+</script>
+</body>
+</html>
