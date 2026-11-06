@@ -53,8 +53,8 @@ work people didn't have to do:
   kept as written beside what was published, so heavy editing shows up too.
 
 In the synthetic October: 151.2 hours absorbed for $0.39. The handbook agent
-answered 739 questions (6 minutes each). Support published 253 drafts and
-rejected 69 (12 minutes each). Digests: 91 published (15 minutes each).
+answered 739 questions (6 minutes each). Support published 255 drafts and
+rejected 67 (12 minutes each). Digests: 105 published (15 minutes each).
 Reviewers there are simulated:
 - they reject drafts the docs didn't cover, and drafts flagged for offering
   an action;

@@ -70,6 +70,10 @@ gives 62%, and two failures in 11 give 52%, which fails the gate.
 | Suite | Passed | 95% interval | Gate |
 |---|--:|--:|---|
 | ask_handbook | 13 of 13 | 77–100% | pass |
+| drift_watcher | 7 of 7 | 65–100% | pass |
+| exec_weekly | 8 of 8 | 68–100% | pass |
+| issue_triage | 8 of 8 | 68–100% | pass |
+| nudge | 10 of 10 | 72–100% | pass |
 | standup_carrier | 11 of 11 | 74–100% | pass |
 | support_drafter | 12 of 12 | 76–100% | pass |
 | team_digest | 10 of 11 | 62–98% | pass |
