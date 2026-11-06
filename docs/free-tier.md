@@ -13,7 +13,7 @@ read on 2026-11-03. They are per billing account per month.
 | Cloud Run | 2M requests, 180k vCPU-s, 360k GiB-s, 1 GB egress from North America | one tick every 30 min plus events | worst case below; `us-central1` so egress to Supabase and NVIDIA is covered |
 | Cloud Scheduler | 3 jobs | 1 | one clock tick; agent schedules live in `agents/*.yaml` |
 | Secret Manager | 6 active versions | 2 | `database-url`, `nvidia-api-key` |
-| BigQuery | 10 GiB storage, 1 TiB queries | MBs | partitions expire after 90 days |
+| BigQuery | 10 GiB storage, 1 TiB queries | MBs | batch load jobs only, which are free; streaming inserts are billed and never used; partitions expire after 90 days |
 | Artifact Registry | 0.5 GB | ~0.2 GB | cleanup keeps the latest 2 images per repository |
 | Cloud Storage | 5 GB in US regions | KBs | Terraform state, guard source (deleted after 7 days) |
 | Cloud Build | 2,500 build-minutes | a few per guard deploy | runtime images are built in GitHub Actions |
@@ -34,6 +34,15 @@ GiB-seconds        = 1,440 × 120 s × 0.5    =  86,400   (free: 360,000)
 Settings that make this hold: `max_instances = 1`, `timeout = 120s`,
 `cpu = 1`, `memory = 512Mi`, request-based billing, invocation by the
 scheduler's service account only.
+
+The worst case holds as the platform grows, because it is set by the request timeout,
+not by what a tick does. A tick now also polls GitHub and loads finished runs, and the
+export is skipped once a tick has used 85 s.
+
+Everything else added runs outside GCP or costs nothing there: the MCP server is a
+local process and is left out of the Cloud Run image, GitHub reads are free, and
+`nudge` and `drift_watcher` make no model calls. A second model provider is off
+unless a key is set.
 
 ## If something still costs money
 

@@ -52,7 +52,7 @@ work people didn't have to do:
   an agent's drafts, the report raises a quality finding. The agent's text is
   kept as written beside what was published, so heavy editing shows up too.
 
-In the synthetic October: 147.2 hours absorbed for $0.43. The handbook agent
+In the synthetic October: 151.2 hours absorbed for $0.39. The handbook agent
 answered 739 questions (6 minutes each). Support published 253 drafts and
 rejected 69 (12 minutes each). Digests: 91 published (15 minutes each).
 Reviewers there are simulated:
@@ -216,9 +216,9 @@ Both arms use the same events, the same seed and the same simulated model.
 
 | | Before | After | Change |
 |---|--:|--:|--:|
-| Total spend | $0.4303 | $0.3157 | −27% |
+| Total spend | $0.3891 | $0.2744 | −29% |
 | ask_handbook spend | $0.1561 | $0.0414 | −73% |
-| Paid model calls | 1,250 | 716 | −43% |
+| Paid model calls | 1,267 | 733 | −42% |
 | Answers served from cache | 0 | 534 | |
 | Answers that changed | | 0 of 798 | |
 
