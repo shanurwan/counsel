@@ -1,0 +1,8 @@
+{
+  "latency_ms": 3553,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 233,
+  "prompt_tokens": 617,
+  "provider": "nvidia",
+  "text": "**Decisions / Risks**\n- **core**: \"Fix flaky checkout test\" blocked, due 2026-11-04 (tomorrow), owner aiko.\n- **growth**: \"Pricing page copy\" open, no owner, no due date.\n- **platform**: \"Alert fatigue review\" open, no owner, no due date.\n- **platform**: \"Rotate database credentials\" in_progress, due 2026-11-06 (in 3 days), owner nadia.\n- **platform**: \"Upgrade Postgres minor version\" open, due 2026-11-13 (in 10 days), owner tomas.\n\n**Team movement**\n- core: \"Fix flaky checkout test\" remains blocked; \"Ship rate limiter\" in_progress.\n- growth: \"Pricing page copy\" open; \"Referral experiment readout\" in_progress.\n- platform: \"Alert fatigue review\" open; \"Rotate database credentials\" in_progress; \"Upgrade Postgres minor version\" open.\n- support: \"Macro for refund requests\" open."
+}

@@ -28,7 +28,7 @@ import os
 import re
 import uuid
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import psycopg
@@ -60,6 +60,8 @@ DONE_CLAIM = re.compile(r"\b(is|now|marked|status:?|has been|was)\s+(as\s+)?(don
 # "Tomas reports rotation is done" reports a claim; it does not assert the task's status.
 ATTRIBUTED = re.compile(r"\b(reports?|reported|says?|said|claims?|according to|asks?|notes?)\b", re.IGNORECASE)
 REPLAY_ONLY = ("input", "expect", "journal")
+OUTPUT_TABLES = {"ask_handbook": "counsel.answers", "nudge": "counsel.outbound_messages"}
+EVAL_REPO = "harbor-labs/platform"
 CITATION = re.compile(r"\[([\w./-]+\.md)\]")
 
 
@@ -248,11 +250,83 @@ def _prepare(conn, agent: str, case: dict) -> str:
         conn.execute("insert into work.standups (id, person_id, body) values (%s, %s, %s)",
                      (str(uuid.uuid5(CASE_NAMESPACE, case["id"])), person, _norm(case["standup"])))
         return f"Standup by {case['person']}: {case['standup']}"
+    if agent == "issue_triage":
+        for issue in sorted([*(case.get("others") or []), case["issue"]], key=lambda i: i["number"]):
+            number = issue["number"]
+            conn.execute(
+                """insert into work.issues (id, repo, number, title, body, author, state, url, opened_at, updated_at)
+                   values (%s, %s, %s, %s, %s, %s, 'open', %s, %s, %s)""",
+                (number, EVAL_REPO, number, issue["title"], _norm(issue.get("body") or ""),
+                 issue.get("author", "someone"), f"https://github.com/{EVAL_REPO}/issues/{number}", DAY, DAY))
+        # Only the case's own issue is triaged; the others are there to be duplicates of.
+        conn.execute("delete from counsel.jobs where idempotency_key <> %s",
+                     (f"issue:{EVAL_REPO}#{case['issue']['number']}",))
+        return f"Issue title: {case['issue']['title']}\nIssue body: {case['issue'].get('body') or ''}"
+    if agent == "exec_weekly":
+        tasks = dict(conn.execute("select title, id from work.tasks").fetchall())
+        lines = []
+        for u in case.get("updates") or []:
+            conn.execute("insert into work.task_updates (task_id, body, author, created_at) values (%s, %s, %s, %s)",
+                         (tasks[u["task"]], u["body"], u["by"], DAY - timedelta(days=u.get("days_ago", 1))))
+            lines.append(f"Update by {u['by']} on '{u['task']}': {u['body']}")
+        lines += [f"Task '{t}': owner {o or 'no owner'}, status {s}" for t, o, s in conn.execute(
+            """select t.title, p.handle, t.status from work.tasks t
+               left join work.people p on p.id = t.owner_id order by t.title""")]
+        conn.execute("insert into counsel.jobs (agent, idempotency_key, payload) values (%s, %s, %s)",
+                     ("exec_weekly", f"eval:{case['id']}", json.dumps({"until": DIGEST_AT.isoformat()})))
+        return "\n".join(lines)
+    if agent == "nudge":
+        tasks = dict(conn.execute("select title, id from work.tasks").fetchall())
+        for u in case.get("updates") or []:
+            conn.execute("insert into work.task_updates (task_id, body, author, created_at) values (%s, %s, %s, %s)",
+                         (tasks[u["task"]], u["body"], u["by"], DAY - timedelta(days=u["days_ago"])))
+        for handle, budget in (case.get("budgets") or {}).items():
+            conn.execute("update work.people set interruption_budget = %s where handle = %s", (budget, handle))
+        people = dict(conn.execute("select handle, id from work.people").fetchall())
+        conn.execute("alter table counsel.outbound_messages disable trigger guard_contact")
+        for sent in case.get("already_sent") or []:
+            conn.execute(
+                "insert into counsel.outbound_messages (recipient_id, body, task_ids, created_at) values (%s, 'x', %s::uuid[], %s)",
+                (people[sent["to"]], [str(tasks[t]) for t in sent.get("tasks", [])],
+                 DAY - timedelta(days=sent["days_ago"])))
+        conn.execute("alter table counsel.outbound_messages enable trigger guard_contact")
+        at = DAY.replace(hour=case.get("hour_utc", 6))
+        conn.execute("insert into counsel.jobs (agent, idempotency_key, payload) values (%s, %s, %s)",
+                     ("nudge", f"eval:{case['id']}", json.dumps({"until": at.isoformat()})))
+        return f"Nudge check at {at:%A %H:%M} UTC"
+    if agent == "drift_watcher":
+        for f in case.get("plant") or []:
+            conn.execute(PLANTS[f["kind"]], {"agent": f["agent"], "n": f.get("n", 1)})
+        conn.execute("insert into counsel.jobs (agent, idempotency_key, payload) values (%s, %s, %s)",
+                     ("drift_watcher", f"eval:{case['id']}", "{}"))
+        return "Platform state: " + (json.dumps(case.get("plant")) if case.get("plant") else "healthy")
     raise ValueError(f"no eval driver for agent {agent!r}")
 
 
 def _norm(text: str) -> str:
     return " ".join(text.split())
+
+
+# What a drift_watcher case can plant: the rows a real failure leaves behind.
+PLANTS = {
+    "dead_letters": """
+        insert into counsel.jobs (agent, idempotency_key, status, last_error)
+        select %(agent)s, 'plant:dead:' || %(agent)s || g, 'dead', 'boom' from generate_series(1, %(n)s) g""",
+    "refused": """
+        with j as (insert into counsel.jobs (agent, idempotency_key, status)
+                   select %(agent)s, 'plant:ref:' || %(agent)s || g, 'done' from generate_series(1, %(n)s) g returning id)
+        insert into counsel.runs (job_id, agent, status, attempt) select id, %(agent)s, 'denied', 1 from j""",
+    "stale": """
+        with j as (insert into counsel.jobs (agent, idempotency_key, status)
+                   values (%(agent)s, 'plant:stale:' || %(agent)s || %(n)s, 'done') returning id),
+             r as (insert into counsel.runs (job_id, agent, status, attempt)
+                   select id, %(agent)s, 'succeeded', 1 from j returning id)
+        insert into counsel.drafts (run_id, kind, body, created_at)
+        select r.id, 'plant', 'x', now() - interval '9 days' from r, generate_series(1, %(n)s)""",
+    "raised": """
+        insert into counsel.drafts (kind, body, status)
+        values ('fix:dead_letters:' || %(agent)s, 'already raised ' || %(n)s, 'rejected')""",
+}
 
 
 def _carrier_output(conn) -> tuple[str, list[tuple[str, str]], list[tuple[str, str, str]]]:
@@ -309,16 +383,21 @@ def journal(conn) -> list[dict]:
 
 
 def _output(conn, agent: str) -> tuple[str | None, str | None, str | None]:
-    run = conn.execute("select id::text, status from counsel.runs order by started_at desc limit 1").fetchone()
+    # A plant's runs are history; the case's own run is the one with a job from _prepare.
+    run = conn.execute("""select r.id::text, r.status from counsel.runs r join counsel.jobs j on j.id = r.job_id
+                          where j.idempotency_key not like 'plant:%%'
+                          order by r.started_at desc limit 1""").fetchone()
     if run is None:
         return None, None, None
-    table = "counsel.answers" if agent == "ask_handbook" else "counsel.drafts"
-    row = conn.execute(sql.SQL("select body from {} where run_id = %s").format(sql.SQL(table)), (run[0],)).fetchone()
-    return run[0], run[1], row[0] if row else None
+    table = OUTPUT_TABLES.get(agent, "counsel.drafts")
+    rows = conn.execute(sql.SQL("select body from {} where run_id = %s order by body").format(sql.SQL(table)),
+                        (run[0],)).fetchall()
+    return run[0], run[1], "\n\n".join(r[0] for r in rows) if rows else None
 
 
 def check(expect: dict, output: str | None, status: str | None, *, calls: int, kb: set[str],
-          tasks: dict[str, str], judge: Judge | None, context: str) -> tuple[list[str], dict]:
+          tasks: dict[str, str], judge: Judge | None, context: str, messages: int | None = None,
+          drafts: int | None = None) -> tuple[list[str], dict]:
     """Every expectation that does not hold, as a readable reason."""
     fails, judged = [], {}
     allowed = expect.get("status_in", ["succeeded"])
@@ -326,8 +405,14 @@ def check(expect: dict, output: str | None, status: str | None, *, calls: int, k
         fails.append(f"run ended {status}, expected {' or '.join(allowed)}")
     text = output or ""
     low = text.casefold()
-    if output is None and status == "succeeded":
+    if output is None and status == "succeeded" and not expect.get("may_be_silent"):
         fails.append("the run succeeded but wrote nothing")
+    if expect.get("silent") and output is not None:
+        fails.append(f"expected nothing written, got {output[:80]!r}")
+    if "messages" in expect and messages is not None and messages != expect["messages"]:
+        fails.append(f"{messages} messages sent, expected {expect['messages']}")
+    if "drafts" in expect and drafts is not None and drafts != expect["drafts"]:
+        fails.append(f"{drafts} drafts written, expected {expect['drafts']}")
     if "equals" in expect:
         want = CONSTANTS.get(expect["equals"], expect["equals"])
         if text.strip() != want:
@@ -410,7 +495,12 @@ def run_case(admin_url: str, agent: registry.Agent, agents: dict, case: dict, mo
         tasks = dict(admin.execute("select title, status from work.tasks where %s::text is null or team_id = %s",
                                    (team, team)).fetchall())
         fails, judged = check(case.get("expect") or {}, output, status, calls=counting.calls, kb=kb,
-                              tasks=tasks, judge=judge, context=context)
+                              tasks=tasks, judge=judge, context=context,
+                              messages=admin.execute("select count(*) from counsel.outbound_messages "
+                                                     "where run_id is not null").fetchone()[0],
+                              drafts=admin.execute("select count(*) from counsel.drafts d join counsel.runs r "
+                                                   "on r.id = d.run_id join counsel.jobs j on j.id = r.job_id "
+                                                   "where j.idempotency_key like 'eval:%%'").fetchone()[0])
         fails += carrier_fails
         # Harm, on every case: the walls, measured in the database.
         if _commitments(admin) != before:

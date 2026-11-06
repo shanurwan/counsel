@@ -1,4 +1,4 @@
-"""Model adapters: NVIDIA NIM live, and recorded replay for CI.
+"""Model adapters: any chat-completions provider live, and recorded replay for CI.
 
 The runtime only sees `complete(messages) -> Completion`. Which provider or
 model answered is recorded with every call, so swapping providers is a config
@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Callable, Protocol
 
 NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+GEMINI_MODELS = ("gemini-2.5-flash",)
 # Probed 2026-11-03: meta/llama-3.3-70b-instruct and llama-3.1-8b are gone (410).
 DEFAULT_MODELS = (
     "nvidia/nemotron-3-ultra-550b-a55b",
@@ -67,7 +69,7 @@ Transport = Callable[[str, dict, dict, float], tuple[int, dict]]
 def _urllib_transport(url: str, headers: dict, body: dict, timeout: float) -> tuple[int, dict]:
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers=headers, method="POST")
     try:
-        # The URL is the fixed https NVIDIA_URL constant, never caller input.
+        # The URL is a fixed https constant in this module, never caller input.
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
             return resp.status, json.loads(resp.read() or b"{}")
     except urllib.error.HTTPError as e:
@@ -80,9 +82,13 @@ def _urllib_transport(url: str, headers: dict, body: dict, timeout: float) -> tu
 
 
 @dataclass
-class NvidiaModel:
+class ChatModel:
+    """One provider's chat-completions endpoint, with an ordered list of its models."""
+
     api_key: str
     models: tuple[str, ...] = DEFAULT_MODELS
+    url: str = NVIDIA_URL
+    provider: str = "nvidia"
     timeout_s: float = 45.0
     retries: int = 2
     # The free tier allows about 40 requests a minute; stay under it.
@@ -102,13 +108,10 @@ class NvidiaModel:
                     self.sleep(wait)
                 self._last_call = time.monotonic()
 
-                # Nemotron 3 reasons before answering by default, and reasoning tokens
-                # count against max_tokens; with it on, a digest was cut off mid-line.
                 body = {"model": model, "messages": messages, "max_tokens": max_tokens,
-                        "temperature": self.temperature,
-                        "chat_template_kwargs": {"enable_thinking": False}}
+                        "temperature": self.temperature, **self.extra_body()}
                 started = time.monotonic()
-                status, data = self.transport(NVIDIA_URL, headers, body, self.timeout_s)
+                status, data = self.transport(self.url, headers, body, self.timeout_s)
                 latency = int((time.monotonic() - started) * 1000)
 
                 if status == 200:
@@ -122,7 +125,7 @@ class NvidiaModel:
                                          output_tokens=usage.get("completion_tokens"))
                     return Completion(
                         text=(msg.get("content") or "").strip(),
-                        provider="nvidia",
+                        provider=self.provider,
                         model=model,
                         latency_ms=latency,
                         prompt_tokens=usage.get("prompt_tokens"),
@@ -136,6 +139,43 @@ class NvidiaModel:
                     continue
                 raise ModelError(errors[-1])
         raise ModelError("all models failed: " + " | ".join(errors))
+
+    def extra_body(self) -> dict:
+        return {}
+
+
+class NvidiaModel(ChatModel):
+    def extra_body(self) -> dict:
+        # Nemotron 3 reasons before answering by default, and reasoning tokens
+        # count against max_tokens; with it on, a digest was cut off mid-line.
+        return {"chat_template_kwargs": {"enable_thinking": False}}
+
+
+def gemini_model(api_key: str, models: tuple[str, ...] = GEMINI_MODELS) -> ChatModel:
+    return ChatModel(api_key=api_key, models=models, url=GEMINI_URL, provider="gemini")
+
+
+@dataclass
+class FallbackModel:
+    """Providers in order. A provider that is down hands over to the next.
+
+    A truncated answer does not: it was generated and billed, so it is reported
+    as it is, and asking a second provider would only spend more on the same
+    too-small max_tokens.
+    """
+
+    models: tuple[Model, ...]
+
+    def complete(self, messages: list[dict], *, max_tokens: int = 800) -> Completion:
+        errors = []
+        for model in self.models:
+            try:
+                return model.complete(messages, max_tokens=max_tokens)
+            except ModelError as e:
+                if e.model is not None:
+                    raise
+                errors.append(str(e))
+        raise ModelError(" || ".join(errors))
 
 
 class ReplayModel:

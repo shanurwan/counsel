@@ -50,8 +50,7 @@ grant counsel_agents to agent_drift_watcher;
 grant agent_drift_watcher to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel, support from agent_drift_watcher;
 revoke all on schema work, kb, counsel, support from agent_drift_watcher;
-grant usage on schema work to agent_drift_watcher;
-grant select on work.teams, work.people, work.tasks to agent_drift_watcher;
+grant select on counsel.platform_findings, counsel.raised_fixes to agent_drift_watcher;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_drift_watcher;
 
 -- exec_weekly (T1) owner: ops-lead
@@ -86,7 +85,7 @@ grant agent_issue_triage to counsel_runtime;
 revoke all on all tables in schema work, kb, counsel, support from agent_issue_triage;
 revoke all on schema work, kb, counsel, support from agent_issue_triage;
 grant usage on schema work to agent_issue_triage;
-grant select on work.teams, work.people, work.tasks to agent_issue_triage;
+grant select on work.issues, work.teams to agent_issue_triage;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_issue_triage;
 
 -- nudge (T3) owner: ops-lead
@@ -104,7 +103,9 @@ revoke all on all tables in schema work, kb, counsel, support from agent_nudge;
 revoke all on schema work, kb, counsel, support from agent_nudge;
 grant usage on schema work to agent_nudge;
 grant select on work.teams, work.people, work.tasks to agent_nudge;
-grant insert (run_id, recipient_id, body) on counsel.outbound_messages to agent_nudge;
+grant select on work.task_updates to agent_nudge;
+grant insert (run_id, recipient_id, body, task_ids) on counsel.outbound_messages to agent_nudge;
+grant select (recipient_id, task_ids, created_at, cancelled_at) on counsel.outbound_messages to agent_nudge;
 
 -- standup_carrier (T2) owner: platform
 -- Carries a person's own standup text into the task it belongs to, only after that person approves the exact text. It cannot change who owns the task, when it is due, or its status.
@@ -121,7 +122,7 @@ revoke all on all tables in schema work, kb, counsel, support from agent_standup
 revoke all on schema work, kb, counsel, support from agent_standup_carrier;
 grant usage on schema work to agent_standup_carrier;
 grant select (id, person_id, body, created_at) on work.standups to agent_standup_carrier;
-grant insert (task_id, body, consent_id) on work.task_updates to agent_standup_carrier;
+grant insert (task_id, body, consent_id, run_id) on work.task_updates to agent_standup_carrier;
 grant select on work.teams, work.people, work.tasks to agent_standup_carrier;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_standup_carrier;
 
@@ -166,9 +167,9 @@ grant insert (id, run_id, kind, body) on counsel.drafts to agent_team_digest;
 -- Per-agent settings for the value ledger and budgets (0008_ledger.sql).
 insert into counsel.agent_settings (agent, owner, minutes_per_output, budget_usd) values
   ('ask_handbook', 'people-ops', 6, null),
-  ('drift_watcher', 'platform', null, null),
-  ('exec_weekly', 'ops-lead', null, null),
-  ('issue_triage', 'platform', null, null),
+  ('drift_watcher', 'platform', 20, null),
+  ('exec_weekly', 'ops-lead', 45, null),
+  ('issue_triage', 'platform', 5, null),
   ('nudge', 'ops-lead', null, null),
   ('standup_carrier', 'platform', 3, null),
   ('support_drafter', 'support', 12, null),

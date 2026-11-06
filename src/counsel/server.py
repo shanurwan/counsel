@@ -9,12 +9,17 @@ from __future__ import annotations
 
 import json
 import os
+import time
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import psycopg
 
+from . import github, warehouse
 from .cli import build_worker
 from .log import log
+
+WAREHOUSE_CUTOFF_S = 85.0  # leave the export room inside Cloud Run's 120 s request timeout
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,7 +45,12 @@ class Handler(BaseHTTPRequestHandler):
             # A fresh connection per tick: nothing to go stale between ticks.
             with psycopg.connect(os.environ["COUNSEL_DATABASE_URL"], autocommit=True,
                                  connect_timeout=10) as conn:
-                summary = build_worker(conn).tick()
+                started = time.monotonic()
+                worker = build_worker(conn)
+                synced = github.sync_all(conn, worker.agents, datetime.now(timezone.utc))
+                summary = {**worker.tick(), "synced": synced}
+                if warehouse.on_cloud_run() and time.monotonic() - started < WAREHOUSE_CUTOFF_S:
+                    summary["warehouse"] = _export(conn)
             self._send(200, summary)
         except Exception as e:  # noqa: BLE001 - report, let the scheduler retry
             log("ERROR", "tick failed", error=f"{type(e).__name__}: {e}")
@@ -48,6 +58,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):  # request logs come from Cloud Run itself
         pass
+
+
+def _export(conn) -> dict:
+    """The warehouse is a copy: when it is down the agents carry on, and the cursor waits."""
+    try:
+        return warehouse.export(conn, warehouse.cloud_run_client())
+    except warehouse.WarehouseError as e:
+        log("WARNING", "warehouse export failed; the next tick retries", error=str(e))
+        return {"error": str(e)[:200]}
 
 
 def main() -> None:

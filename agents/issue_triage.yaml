@@ -4,7 +4,9 @@ description: >
   information. It suggests an owner in the draft; a person assigns.
 owner: platform
 tier: T1
-capabilities: [read_tasks, write_drafts]
+capabilities: [read_issues, write_drafts]
 triggers:
   events: [issue_opened]
 suite: evals/issue_triage
+minutes_per_output: 5
+watches: [shanurwan/counsel]

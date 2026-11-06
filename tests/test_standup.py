@@ -116,7 +116,8 @@ def test_a_carry_whose_text_was_changed_after_consent_is_refused_and_audited(adm
     summary = worker.tick()
     assert [r["result"] for r in summary["runs"]] == ["denied"]
     assert one(admin, "select count(*) from work.task_updates") == (0,)
-    assert one(admin, "select detail->>'sqlstate' from counsel.audit_log order by id desc limit 1") == ("CN002",)
+    assert one(admin, "select detail->>'sqlstate' from counsel.audit_log where action <> 'rollback' "
+                      "order by id desc limit 1") == ("CN002",)
 
 
 def test_a_consent_carries_once(admin, make_worker, standup):

@@ -1,0 +1,8 @@
+{
+  "latency_ms": 8375,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 261,
+  "prompt_tokens": 712,
+  "provider": "nvidia",
+  "text": "**Decisions & Risks**\n- **Core:** \"Fix flaky checkout test\" blocked, due 2026-11-04 (owner: aiko).\n- **Growth:** \"Pricing page copy\" open, no owner, no due date.\n- **Platform:** \"Alert fatigue review\" open, no owner, no due date.\n- **Core:** \"Ship rate limiter\" in progress, due 2026-11-08 (owner: dev).\n- **Growth:** \"Referral experiment readout\" in progress, due 2026-11-01 (owner: bruno).\n- **Platform:** \"Rotate database credentials\" in progress, due 2026-11-06 (owner: nadia).\n- **Support:** \"Macro for refund requests\" open, due 2026-11-10 (owner: ines).\n\n**Team Movement**\n- Core: \"Ship rate limiter\" load test passed on staging (dev).\n- Growth: \"Referral experiment readout\" cohort export arrived (bruno).\n- Platform: \"Rotate database credentials\" staging rotated; production window booked (nadia).\n- Support: No updates."
+}

@@ -28,7 +28,7 @@ MAX_CELL = 500
 
 # Refusals that end the run (recorded, never retried). Anything else, such as
 # a table that does not exist, goes back to the model as an error result.
-DENIALS = {"42501", "CN001", "CN002"}
+DENIALS = {"42501", "CN001", "CN002", "CN004"}
 
 
 class InvalidCall(Exception):

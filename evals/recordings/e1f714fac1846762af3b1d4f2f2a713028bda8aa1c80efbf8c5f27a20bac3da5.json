@@ -1,0 +1,8 @@
+{
+  "latency_ms": 5920,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 310,
+  "prompt_tokens": 623,
+  "provider": "nvidia",
+  "text": "**Decisions / Risks**\n- **Core: Fix flaky checkout test** \u2014 blocked, due 2026-11-04, owner aiko. Blocked on payments sandbox outage; vendor says fix by Thursday.\n- **Growth: Pricing page copy** \u2014 open, no due date, no owner.\n- **Platform: Alert fatigue review** \u2014 open, no due date, no owner.\n\n**Upcoming dates (next 7 days)**\n- 2026-11-01: Growth \u2014 Referral experiment readout (in_progress, owner bruno)\n- 2026-11-04: Core \u2014 Fix flaky checkout test (blocked, owner aiko)\n- 2026-11-06: Platform \u2014 Rotate database credentials (in_progress, owner nadia)\n- 2026-11-08: Core \u2014 Ship rate limiter (in_progress, owner dev)\n- 2026-11-10: Support \u2014 Macro for refund requests (open, owner ines)\n\n**Team movement**\n- Core: Fix flaky checkout test remains blocked; Ship rate limiter in progress.\n- Growth: Referral experiment readout in progress; Pricing page copy open, unowned.\n- Platform: Rotate database credentials in progress; Alert fatigue review open, unowned; Upgrade Postgres minor version open.\n- Support: Macro for refund requests open."
+}

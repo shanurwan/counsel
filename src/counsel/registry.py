@@ -23,6 +23,8 @@ CAPABILITIES: dict[str, str] = {
     "read_tasks": "T1",
     "read_updates": "T1",
     "read_tickets": "T1",
+    "read_issues": "T1",
+    "read_platform": "T1",
     "write_drafts": "T1",
     # A draft meant for a customer: external-facing, so a person sends it.
     "draft_support_replies": "T2",
@@ -36,11 +38,13 @@ REQUIRED = ("name", "description", "owner", "tier", "capabilities", "triggers", 
 # a T0 prompt holds the question and handbook text, never another person's data.
 # minutes_per_output: the owner's estimate of how long a person takes to do one
 # output by hand. The value ledger counts it only for outputs a person accepted.
-OPTIONAL = ("budget_usd", "cache_hours", "minutes_per_output")
+# watches: public GitHub repositories whose new issues trigger this agent.
+OPTIONAL = ("budget_usd", "cache_hours", "minutes_per_output", "watches")
 ALLOWED = set(REQUIRED) | set(OPTIONAL)
 TRIGGER_KEYS = {"schedule", "events"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
 OWNER_RE = re.compile(r"^[a-z][a-z0-9._-]{1,40}$")
+REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
 class RegistryError(Exception):
@@ -63,6 +67,7 @@ class Agent:
     budget_usd: float | None = None
     cache_hours: int | None = None
     minutes_per_output: int | None = None
+    watches: tuple[str, ...] = ()
 
     @property
     def role(self) -> str:
@@ -133,6 +138,11 @@ def validate_entry(doc: object, source: str) -> list[str]:
             problems.append(f"{where}: cache_hours is only allowed at T0 (higher tiers read "
                             "per-person or per-customer data)")
 
+    watches = doc.get("watches")
+    if watches is not None and not (isinstance(watches, list) and all(
+            isinstance(r, str) and REPO_RE.match(r) for r in watches)):
+        problems.append(f"{where}: watches must be a list of owner/name repositories")
+
     triggers = doc.get("triggers") or {}
     if not isinstance(triggers, dict):
         problems.append(f"{where}: triggers must be a mapping")
@@ -173,6 +183,7 @@ def load(directory: Path) -> list[Agent]:
             budget_usd=doc.get("budget_usd"),
             cache_hours=doc.get("cache_hours"),
             minutes_per_output=doc.get("minutes_per_output"),
+            watches=tuple(doc.get("watches") or ()),
         ))
 
     names = [a.name for a in agents]

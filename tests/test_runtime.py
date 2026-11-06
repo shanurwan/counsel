@@ -46,7 +46,7 @@ class Clock:
 @pytest.fixture
 def admin(database_url):
     with psycopg.connect(database_url, autocommit=True) as conn:
-        conn.execute("""truncate counsel.steps, counsel.model_calls, counsel.runs, counsel.jobs,
+        conn.execute("""truncate counsel.run_rollbacks, counsel.steps, counsel.model_calls, counsel.runs, counsel.jobs,
                                  counsel.questions, counsel.answers, counsel.drafts""")
         yield conn
 
@@ -163,7 +163,8 @@ def test_failures_back_off_then_dead_letter_with_an_audit_record(admin, make_wor
     assert results == ["retry", "retry", "dead"]
     assert one(admin, "select status, attempts from counsel.jobs") == ("dead", 3)
     assert one(admin, "select status from counsel.runs") == ("failed",)
-    action, decision = one(admin, "select action, decision from counsel.audit_log order by id desc limit 1")
+    action, decision = one(admin, "select action, decision from counsel.audit_log "
+                                  "where action <> 'rollback' order by id desc limit 1")
     assert (action, decision) == ("ask_handbook:dead_letter", "failed")
     errors = [r[0] for r in admin.execute("select error from counsel.model_calls")]
     assert len(errors) == 3 and all("503" in e for e in errors)
@@ -182,7 +183,8 @@ def test_a_denied_write_is_recorded_and_never_retried(admin, make_worker):
     assert one(admin, "select status from counsel.jobs where idempotency_key = 'test:sneaky'") == ("done",)
     assert one(admin, "select status from counsel.runs") == ("denied",)
     action, decision, sqlstate = one(
-        admin, "select action, decision, detail->>'sqlstate' from counsel.audit_log order by id desc limit 1")
+        admin, "select action, decision, detail->>'sqlstate' from counsel.audit_log "
+               "where action <> 'rollback' order by id desc limit 1")
     assert (action, decision, sqlstate) == ("team_digest:denied_write", "denied", "42501")
     assert one(admin, "select count(*) from work.tasks where status = 'done'") == (0,)
 

@@ -8,3 +8,4 @@ capabilities: [read_tasks, read_updates, write_drafts]
 triggers:
   schedule: "0 7 * * 1"
 suite: evals/exec_weekly
+minutes_per_output: 45

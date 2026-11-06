@@ -1,4 +1,5 @@
-"""counsel validate | compile | audit | bench | eval | ask | standup | review | report | trace | simulate"""
+"""counsel validate | compile | audit | bench | eval | ask | standup | review | rollback | sync | warehouse |
+report | maturity | trace | simulate | challenge | new | inbox"""
 
 from __future__ import annotations
 
@@ -18,12 +19,15 @@ RECORDINGS = ROOT / "tests" / "recordings"
 
 def build_model():
     """COUNSEL_MODEL=live (default) | replay | record."""
-    from .model import NvidiaModel, RecordingModel, ReplayModel
+    from .model import FallbackModel, NvidiaModel, RecordingModel, ReplayModel, gemini_model
 
     mode = os.environ.get("COUNSEL_MODEL", "live")
     if mode == "replay":
         return ReplayModel(RECORDINGS)
     live = NvidiaModel(api_key=os.environ["NVIDIA_API_KEY"])
+    # A second provider is optional; with a key set, an NVIDIA outage hands over to it.
+    if os.environ.get("GEMINI_API_KEY"):
+        live = FallbackModel((live, gemini_model(os.environ["GEMINI_API_KEY"])))
     return RecordingModel(live, RECORDINGS) if mode == "record" else live
 
 
@@ -219,7 +223,7 @@ def cmd_review(args: argparse.Namespace) -> int:
     """List drafts waiting for a person, or publish or reject one, as you."""
     import psycopg
 
-    from . import review
+    from . import github, review
 
     with psycopg.connect(_dsn(args)) as conn:
         try:
@@ -230,16 +234,176 @@ def cmd_review(args: argparse.Namespace) -> int:
                 return 0
             if args.publish:
                 body = Path(args.body_file).read_text(encoding="utf-8") if args.body_file else None
-                kind = review.publish(conn, args.draft_id, body)
+                kind = review.publish(conn, args.draft_id, body, deliver=_deliver)
                 print(f"published {kind}" + (" (posted to the customer as you)" if kind.startswith("support_reply") else ""))
             elif args.reject:
                 print(f"rejected {review.reject(conn, args.draft_id)}")
             else:
                 print("pass --publish or --reject", file=sys.stderr)
                 return 2
-        except review.ReviewError as e:
+        except (review.ReviewError, github.GitHubError) as e:
             print(e, file=sys.stderr)
             return 1
+    return 0
+
+
+def _deliver(kind: str, text: str) -> None:
+    """Post what you just approved to GitHub, with your token. Nothing else ever writes there."""
+    from . import github
+
+    client = github.GitHub(token=os.environ.get("GH_TOKEN"))
+    if kind.startswith("issue_triage:"):
+        repo, number = kind.split(":", 1)[1].rsplit("#", 1)
+        print("posted", client.comment(repo, int(number), text))
+    elif kind.startswith("fix:"):
+        repo = os.environ.get("COUNSEL_FIX_REPO", "shanurwan/counsel")
+        print("filed", client.create_issue(repo, f"drift_watcher: {kind.removeprefix('fix:')}", text))
+
+
+def cmd_rollback(args: argparse.Namespace) -> int:
+    """Retract everything a run wrote that a person has not accepted, in one transaction."""
+    import psycopg
+
+    with psycopg.connect(_dsn(args)) as conn:
+        if not conn.execute("select from counsel.runs where id = %s", (args.run_id,)).fetchone():
+            print("no such run", file=sys.stderr)
+            return 1
+        added = conn.execute("insert into counsel.run_rollbacks (run_id, reason) values (%s, %s) on conflict do nothing",
+                             (args.run_id, args.reason)).rowcount
+        if not added:
+            print("already rolled back")
+            return 0
+        detail = conn.execute("""select detail from counsel.audit_log where run_id = %s and action = 'rollback'
+                                 order by id desc limit 1""", (args.run_id,)).fetchone()[0]
+    print(f"retracted {detail['drafts']} drafts, {detail['answers']} answers, {detail['notes']} notes and cancelled "
+          f"{detail['messages']} messages; {detail['kept_published']} published drafts stand, a person accepted them")
+    return 0
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    """Pull new issues from every repository an agent watches. Read-only on GitHub."""
+    import json
+    from datetime import datetime, timezone
+
+    import psycopg
+
+    from . import github
+
+    with psycopg.connect(_dsn(args), autocommit=True) as conn:
+        results = github.sync_all(conn, {a.name: a for a in _load()}, datetime.now(timezone.utc))
+    print(json.dumps(results, indent=2))
+    return 0
+
+
+def cmd_warehouse(args: argparse.Namespace) -> int:
+    """Load finished runs into BigQuery until none are left."""
+    import psycopg
+
+    from . import warehouse
+
+    client = warehouse.gcloud_client(args.project)
+    total = 0
+    with psycopg.connect(_dsn(args), autocommit=True) as conn:
+        while n := warehouse.export(conn, client)["exported"]:
+            total += n
+    print(f"exported {total} runs")
+    return 0
+
+
+def cmd_maturity(args: argparse.Namespace) -> int:
+    """Each team's grade, and with --team the rows behind it, so a dispute has an answer."""
+    from datetime import datetime, timedelta, timezone
+
+    import psycopg
+    from psycopg.rows import dict_row
+
+    until = datetime.now(timezone.utc)
+    window = {"since": until - timedelta(days=args.days), "until": until}
+    query = (ROOT / "db" / "reports" / "maturity.sql").read_text(encoding="utf-8")
+    with psycopg.connect(_dsn(args), row_factory=dict_row) as conn:
+        rows = conn.execute(query, window).fetchall()
+        if args.team:
+            rows = [r for r in rows if r["team"] == args.team]
+        print(f"Last {args.days} days. Definition and query: db/reports/maturity.sql\n")
+        print("| Team | Grade | Weeks active | Digests | Notes | Questions | Digests rejected |")
+        print("|---|--:|--:|--:|--:|--:|--:|")
+        for r in rows:
+            print(f"| {r['team']} | {r['grade']} | {r['active_weeks']} | {r['digests']} | {r['notes']} | "
+                  f"{r['questions']} | {r['rejected']} of {r['digests_reviewed']} |")
+        if args.team:
+            print("\nThe outputs counted:")
+            for d in conn.execute(
+                    """select id, kind, reviewed_at, reviewed_by from counsel.drafts
+                       where kind = %(kind)s and status = 'published'
+                         and reviewed_at >= %(since)s and reviewed_at < %(until)s order by reviewed_at""",
+                    {**window, "kind": f"team_digest:{args.team}"}):
+                print(f"  digest {d['id']}  published {d['reviewed_at']:%Y-%m-%d} by {d['reviewed_by']}")
+            for n in conn.execute(
+                    """select u.id, u.created_at, u.on_behalf_of from work.task_updates u
+                       join work.people p on p.handle = u.on_behalf_of
+                       where p.team_id = %(team)s and u.retracted_at is null
+                         and u.created_at >= %(since)s and u.created_at < %(until)s order by u.created_at""",
+                    {**window, "team": args.team}):
+                print(f"  note {n['id']}  {n['created_at']:%Y-%m-%d} from {n['on_behalf_of']}")
+    return 0
+
+
+def cmd_challenge(args: argparse.Namespace) -> int:
+    """Turn a disputed output into a case in the agent's golden suite."""
+    import getpass
+
+    import psycopg
+
+    from .challenge import ChallengeError, add_case, case_from_run
+
+    with psycopg.connect(_dsn(args)) as conn:
+        try:
+            agent, case = case_from_run(conn, args.run_id, case_id=args.id, must_contain=args.must_contain,
+                                        must_not_contain=args.must_not_contain, rubric=args.rubric,
+                                        by=getpass.getuser())
+            suite = ROOT / "evals" / agent / "suite.yaml"
+            add_case(suite, case)
+        except ChallengeError as e:
+            print(e, file=sys.stderr)
+            return 1
+    print(f"added {case['id']} to {suite.relative_to(ROOT)}\n"
+          f"record it: COUNSEL_MODEL=record counsel eval --agent {agent}\n"
+          "If it fails, the challenge was right: the gate blocks this agent until it is fixed.")
+    return 0
+
+
+def cmd_new(args: argparse.Namespace) -> int:
+    from .challenge import ChallengeError, scaffold
+
+    try:
+        made = scaffold(ROOT, args.name, args.owner, args.tier, args.capabilities)
+    except ChallengeError as e:
+        print(e, file=sys.stderr)
+        return 1
+    print("\n".join(f"wrote {p.relative_to(ROOT)}" for p in made))
+    print(f"next: write the suite's cases, implement {args.name} in behaviors.py, run `counsel compile`")
+    return 0
+
+
+def cmd_inbox(args: argparse.Namespace) -> int:
+    """What agents have sent a person, and how much of their budget it spent."""
+    import psycopg
+
+    with psycopg.connect(_dsn(args)) as conn:
+        person = conn.execute("select id, interruption_budget from work.people where handle = %s",
+                              (args.handle,)).fetchone()
+        if person is None:
+            print(f"no person {args.handle!r}", file=sys.stderr)
+            return 1
+        rows = conn.execute(
+            """select created_at, agent, body, cancelled_at from counsel.outbound_messages
+               where recipient_id = %s order by created_at desc limit 20""", (person[0],)).fetchall()
+        spent = conn.execute(
+            """select count(*) from counsel.outbound_messages where recipient_id = %s
+               and cancelled_at is null and created_at > now() - interval '7 days'""", (person[0],)).fetchone()[0]
+    print(f"{args.handle}: {spent} of {person[1]} messages in the last 7 days\n")
+    for at, agent, body, cancelled in rows:
+        print(f"{at:%Y-%m-%d %H:%M} {agent}{' (cancelled)' if cancelled else ''}\n{body}\n")
     return 0
 
 
@@ -356,6 +520,48 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("run_id")
     p.add_argument("--dsn")
     p.set_defaults(fn=cmd_trace)
+
+    p = sub.add_parser("rollback", help="retract what a run wrote that no person has accepted")
+    p.add_argument("run_id")
+    p.add_argument("--reason", default="rolled back by a person")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_rollback)
+
+    p = sub.add_parser("sync", help="pull new issues from every repository an agent watches")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_sync)
+
+    p = sub.add_parser("warehouse", help="load finished runs into BigQuery (Cloud Run does this every tick)")
+    p.add_argument("--project", required=True)
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_warehouse)
+
+    p = sub.add_parser("maturity", help="each team's grade from what happened; --team shows the rows behind it")
+    p.add_argument("--team")
+    p.add_argument("--days", type=int, default=28)
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_maturity)
+
+    p = sub.add_parser("challenge", help="turn a disputed output into a case in the agent's golden suite")
+    p.add_argument("run_id")
+    p.add_argument("--id", required=True, help="the new case's id, lower_snake_case")
+    p.add_argument("--must-contain", action="append", default=[])
+    p.add_argument("--must-not-contain", action="append", default=[])
+    p.add_argument("--rubric", help="a judge rubric from evals/judge/rubrics.yaml")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_challenge)
+
+    p = sub.add_parser("new", help="scaffold an agent: its registry entry and an empty suite")
+    p.add_argument("name")
+    p.add_argument("--owner", required=True)
+    p.add_argument("--tier", required=True, choices=registry.TIERS)
+    p.add_argument("--capabilities", required=True, nargs="+")
+    p.set_defaults(fn=cmd_new)
+
+    p = sub.add_parser("inbox", help="what agents have sent a person")
+    p.add_argument("handle")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_inbox)
 
     p = sub.add_parser("simulate", help="play a synthetic month and benchmark the cost report's fix")
     p.add_argument("--admin-url", default=os.environ.get("COUNSEL_TEST_ADMIN_URL"))

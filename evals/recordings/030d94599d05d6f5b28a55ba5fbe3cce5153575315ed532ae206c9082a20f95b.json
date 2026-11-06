@@ -1,0 +1,8 @@
+{
+  "latency_ms": 5148,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 287,
+  "prompt_tokens": 637,
+  "provider": "nvidia",
+  "text": "**Decisions & Risks**\n- **Core**: \"Fix flaky checkout test\" blocked, due 2026-11-04 (owner: aiko).\n- **Growth**: \"Pricing page copy\" open, no owner, no due date.\n- **Platform**: \"Alert fatigue review\" open, no owner, no due date.\n- **Core**: \"Ship rate limiter\" in_progress, due 2026-11-08 (owner: dev).\n- **Growth**: \"Referral experiment readout\" in_progress, due 2026-11-01 (owner: bruno) \u2014 date has passed.\n- **Platform**: \"Rotate database credentials\" in_progress, due 2026-11-06 (owner: nadia).\n- **Support**: \"Macro for refund requests\" open, due 2026-11-10 (owner: ines).\n- **Platform**: \"Upgrade Postgres minor version\" open, due 2026-11-13 (owner: tomas).\n\n**Team Movement**\n- Core: \"Ship rate limiter\" \u2014 token bucket merged (note by dev, 2026-11-02).\n- Growth: No updates.\n- Platform: No updates.\n- Support: No updates."
+}

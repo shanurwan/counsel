@@ -36,6 +36,10 @@ from .model import Completion, ModelError, request_hash
 from .runtime import Worker
 
 ROOT = Path(__file__).resolve().parents[2]
+# The agents the benchmark measures, fixed so that shipping another agent cannot
+# move a before/after comparison.
+SIMULATED = {name: IMPLEMENTATIONS[name] for name in
+             ("ask_handbook", "team_digest", "support_drafter", "standup_carrier")}
 SEED = ROOT / "db" / "seed" / "harbor_labs.sql"
 SIM_DB = "counsel_sim"
 # Throwaway login on the simulation database only, the same string the tests
@@ -271,7 +275,7 @@ def run_month(admin_url: str, agents: list[registry.Agent], days: int = DAYS) ->
         clock = Clock(START)
         runtime = psycopg.conninfo.make_conninfo(url, user="counsel_runtime", password=SIM_PASSWORD)
         with psycopg.connect(runtime, autocommit=True) as rconn:
-            worker = Worker(rconn, {a.name: a for a in agents}, IMPLEMENTATIONS, SimulatedModel(),
+            worker = Worker(rconn, {a.name: a for a in agents}, SIMULATED, SimulatedModel(),
                             worker_id="sim", clock=clock)
             for d in range(days):
                 day = START + timedelta(days=d)

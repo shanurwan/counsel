@@ -141,7 +141,7 @@ def test_a_refused_tool_call_ends_the_run_and_is_audited(support_admin, make_wor
     model = FakeModel(text='{"tool": "select", "args": {"table": "support.integration_tokens"}}')
     summary = make_worker(model, SUPPORT_ONLY).tick()
     assert [r["result"] for r in summary["runs"]] == ["denied"]
-    action, decision, detail = one(support_admin, "select action, decision, detail from counsel.audit_log "
+    action, decision, detail = one(support_admin, "select action, decision, detail from counsel.audit_log where action <> 'rollback' "
                                                   "order by id desc limit 1")
     assert (action, decision, detail["sqlstate"]) == ("support_drafter:denied_write", "denied", "42501")
     assert one(support_admin, "select count(*) from counsel.drafts") == (0,)

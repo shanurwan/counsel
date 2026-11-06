@@ -39,8 +39,47 @@ SUBJECTS = sql.SQL("""
 READER_ROLE = "counsel_reader"
 READER_ALLOWED = ("counsel.call_costs", "counsel.run_costs", "counsel.model_prices", "counsel.value_ledger")
 
+# The MCP server's login (db/migrations/0012_meta.sql): reads the journal, may ask a question.
+MCP_ROLE = "counsel_mcp"
+MCP_READS = ("counsel.runs", "counsel.steps", "counsel.model_calls", "counsel.audit_log", "counsel.drafts",
+             "counsel.answers", "counsel.outbound_messages", "counsel.run_costs", "counsel.value_ledger",
+             "counsel.agent_settings")
+
 PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
-          "reader": READER_ROLE, "reader_allowed": list(READER_ALLOWED)}
+          "reader": READER_ROLE, "reader_allowed": [f"SELECT {t}" for t in READER_ALLOWED],
+          "mcp": MCP_ROLE, "mcp_allowed": [f"SELECT {t}" for t in MCP_READS] + ["INSERT counsel.questions"]}
+
+
+# A login may hold exactly its allowed privileges, no attributes and no memberships.
+LOGIN_CHECK = """
+        select %({role})s, format('%%s on %%s', p.priv, c.oid::regclass)
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'),
+                           ('REFERENCES'), ('TRIGGER')) p(priv)
+        where exists (select from pg_roles where rolname = %({role})s)
+          and c.relkind in ('r', 'v', 'm', 'p', 'f')
+          and n.nspname not in ('pg_catalog', 'information_schema')
+          and has_schema_privilege(%({role})s, n.oid, 'USAGE')
+          and (has_table_privilege(%({role})s, c.oid, p.priv)
+               or (p.priv in ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES')
+                   and has_any_column_privilege(%({role})s, c.oid, p.priv)))
+          and not (p.priv || ' ' || c.oid::regclass::text = any(%({allowed})s))
+        union all
+        select r.rolname, a.attr
+        from pg_roles r
+        cross join lateral (values
+            ('superuser', r.rolsuper), ('createrole', r.rolcreaterole), ('createdb', r.rolcreatedb),
+            ('bypassrls', r.rolbypassrls), ('replication', r.rolreplication), ('inherit', r.rolinherit)
+        ) a(attr, bad)
+        where r.rolname = %({role})s and a.bad
+        union all
+        select m.rolname, format('member of %%s', g.rolname)
+        from pg_auth_members am
+        join pg_roles m on m.oid = am.member
+        join pg_roles g on g.oid = am.roleid
+        where m.rolname = %({role})s
+    """
 
 CHECKS: dict[str, str] = {
     "commitment column writable": """
@@ -127,35 +166,8 @@ CHECKS: dict[str, str] = {
           and n.nspname not in ('pg_catalog', 'information_schema')
           and has_function_privilege(s.rolname, p.oid, 'EXECUTE')
     """,
-    "reader reaches beyond the cost views": """
-        select %(reader)s, format('%%s on %%s', p.priv, c.oid::regclass)
-        from pg_class c
-        join pg_namespace n on n.oid = c.relnamespace
-        cross join (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE'),
-                           ('REFERENCES'), ('TRIGGER')) p(priv)
-        where exists (select from pg_roles where rolname = %(reader)s)
-          and c.relkind in ('r', 'v', 'm', 'p', 'f')
-          and n.nspname not in ('pg_catalog', 'information_schema')
-          and has_schema_privilege(%(reader)s, n.oid, 'USAGE')
-          and (has_table_privilege(%(reader)s, c.oid, p.priv)
-               or (p.priv in ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES')
-                   and has_any_column_privilege(%(reader)s, c.oid, p.priv)))
-          and not (p.priv = 'SELECT' and c.oid::regclass::text = any(%(reader_allowed)s))
-        union all
-        select r.rolname, a.attr
-        from pg_roles r
-        cross join lateral (values
-            ('superuser', r.rolsuper), ('createrole', r.rolcreaterole), ('createdb', r.rolcreatedb),
-            ('bypassrls', r.rolbypassrls), ('replication', r.rolreplication), ('inherit', r.rolinherit)
-        ) a(attr, bad)
-        where r.rolname = %(reader)s and a.bad
-        union all
-        select m.rolname, format('member of %%s', g.rolname)
-        from pg_auth_members am
-        join pg_roles m on m.oid = am.member
-        join pg_roles g on g.oid = am.roleid
-        where m.rolname = %(reader)s
-    """,
+    "reader reaches beyond the cost views": LOGIN_CHECK.format(role="reader", allowed="reader_allowed"),
+    "mcp login reaches beyond the journal": LOGIN_CHECK.format(role="mcp", allowed="mcp_allowed"),
 }
 
 LIVE_AGENTS = """

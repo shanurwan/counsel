@@ -7,28 +7,28 @@
     "runs": 1846
   },
   "before": {
-    "total_usd": 0.43031280000000005,
+    "total_usd": 0.3890658,
     "handbook_usd": 0.15606,
-    "paid_calls": 1250
+    "paid_calls": 1267
   },
   "after": {
-    "total_usd": 0.315651,
+    "total_usd": 0.27440400000000004,
     "handbook_usd": 0.0413982,
-    "paid_calls": 716,
+    "paid_calls": 733,
     "cache_hits": 534
   },
   "answers_compared": 798,
   "answers_changed": 0,
   "hours_absorbed": {
-    "before": 147.25,
-    "after": 147.25
+    "before": 151.15,
+    "after": 151.15
   },
   "findings_before": [
     "6 runs tried something their role does not allow, and Postgres refused",
     "ask_handbook pays for the same answer again",
     "support_drafter makes a second model call in 40% of runs",
-    "team_digest: 60 billed calls produced nothing (output truncated at max_tokens=400)",
     "team_digest pays for the same answer again",
+    "team_digest: 9 billed calls produced nothing (output truncated at max_tokens=400)",
     "customer:cust19 drives 65% of support_drafter spend"
   ]
 }

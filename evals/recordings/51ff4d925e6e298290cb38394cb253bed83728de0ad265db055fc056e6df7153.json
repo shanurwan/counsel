@@ -1,0 +1,8 @@
+{
+  "latency_ms": 5285,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 54,
+  "prompt_tokens": 200,
+  "provider": "nvidia",
+  "text": "The CSV export is missing the header row, a regression from last week. Area: data export / CSV generation. Missing: steps to reproduce, sample output, expected vs actual headers, environment details, and whether this affects all exports or specific queries. no duplicate found"
+}

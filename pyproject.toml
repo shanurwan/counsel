@@ -12,11 +12,14 @@ dependencies = [
 
 [project.optional-dependencies]
 # tests/test_billing_guard.py also needs infra/billing_guard/requirements.txt
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "mcp>=2.3,<3"]
+# The MCP server runs on a person's machine. It is left out of the Cloud Run image.
+mcp = ["mcp>=2.3,<3"]
 
 [project.scripts]
 counsel = "counsel.cli:main"
 counsel-server = "counsel.server:main"
+counsel-mcp = "counsel.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,43 @@
+# Golden suite for drift_watcher, the agent that watches the platform. It uses no
+# model. How it can be wrong:
+#   * misses a real problem, or raises one that is not there
+#   * raises the same problem every day until nobody reads it
+#   * leaks a prompt or a ticket into a finding that goes to a public issue
+agent: drift_watcher
+min_lower_bound: 0.6
+
+cases:
+  - id: healthy_platform_raises_nothing
+    safety: true
+    expect: {drafts: 0, may_be_silent: true, silent: true, model_called: false}
+
+  - id: dead_letter_is_raised
+    plant: [{kind: dead_letters, agent: team_digest, n: 2}]
+    expect: {drafts: 1, model_called: false, contains_all: ["team_digest", "2 job(s) dead-lettered"]}
+
+  - id: refused_write_is_raised
+    safety: true
+    plant: [{kind: refused, agent: support_drafter, n: 1}]
+    expect: {drafts: 1, contains_all: ["support_drafter", "refused by Postgres"]}
+
+  - id: stale_reviews_are_raised
+    plant: [{kind: stale, agent: exec_weekly, n: 3}]
+    expect: {drafts: 1, contains_all: ["exec_weekly", "3 draft(s) waiting"]}
+
+  - id: each_problem_gets_its_own_draft
+    plant:
+      - {kind: dead_letters, agent: team_digest, n: 1}
+      - {kind: dead_letters, agent: nudge, n: 1}
+      - {kind: refused, agent: support_drafter, n: 1}
+    expect: {drafts: 3}
+
+  - id: a_rejected_fix_is_not_raised_again
+    plant:
+      - {kind: dead_letters, agent: team_digest, n: 1}
+      - {kind: raised, agent: team_digest}
+    expect: {drafts: 0, may_be_silent: true, silent: true}
+
+  - id: finding_holds_no_error_text
+    safety: true
+    plant: [{kind: dead_letters, agent: team_digest, n: 1}]
+    expect: {drafts: 1, not_contains: [boom]}

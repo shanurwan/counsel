@@ -99,11 +99,14 @@ def test_a_truncated_answer_is_billed_though_never_used(admin, make_worker):
 
 
 def test_agents_cannot_read_cost_data(admin, agents):
-    roles = [a.role for a in agents] + ["counsel_orchestrator", "counsel_runtime"]
+    # The orchestrator already journals every call's tokens, and reads run_costs to export
+    # it to the warehouse. It still cannot read the per-call prices.
     with admin.transaction():
-        for role in roles:
+        for role in [a.role for a in agents] + ["counsel_runtime"]:
             for view in ("counsel.call_costs", "counsel.run_costs", "counsel.model_prices"):
                 assert denied(admin, role, f"select * from {view}") == "42501", (role, view)
+        for view in ("counsel.call_costs", "counsel.model_prices"):
+            assert denied(admin, "counsel_orchestrator", f"select * from {view}") == "42501", view
 
 
 # --- the cache ----------------------------------------------------------------------------

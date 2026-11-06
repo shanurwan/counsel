@@ -35,6 +35,14 @@ CAPABILITY_SQL: dict[str, list[str]] = {
         "grant select (id, customer_id, subject, body, created_at) on support.tickets to {role};",
         "grant select (id, ticket_id, author, body, created_at) on support.ticket_messages to {role};",
     ],
+    "read_issues": [
+        "grant usage on schema work to {role};",
+        # Row-level security limits this to the repository the run was started for.
+        "grant select on work.issues, work.teams to {role};",
+    ],
+    "read_platform": [
+        "grant select on counsel.platform_findings, counsel.raised_fixes to {role};",
+    ],
     "write_drafts": [
         "grant insert (id, run_id, kind, body) on counsel.drafts to {role};",
     ],
@@ -45,10 +53,12 @@ CAPABILITY_SQL: dict[str, list[str]] = {
         "grant usage on schema work to {role};",
         # Row-level security limits this to the one standup the run was started for.
         "grant select (id, person_id, body, created_at) on work.standups to {role};",
-        "grant insert (task_id, body, consent_id) on work.task_updates to {role};",
+        "grant insert (task_id, body, consent_id, run_id) on work.task_updates to {role};",
     ],
     "send_messages": [
-        "grant insert (run_id, recipient_id, body) on counsel.outbound_messages to {role};",
+        "grant insert (run_id, recipient_id, body, task_ids) on counsel.outbound_messages to {role};",
+        # To spend the budget well; the trigger enforces it either way.
+        "grant select (recipient_id, task_ids, created_at, cancelled_at) on counsel.outbound_messages to {role};",
     ],
 }
 

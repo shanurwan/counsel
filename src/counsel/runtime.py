@@ -29,7 +29,7 @@ from .registry import Agent
 LEASE = timedelta(seconds=150)  # longer than Cloud Run's 120 s request timeout
 SCHEDULE_WINDOW = timedelta(minutes=35)  # one 30-minute tick plus slack
 TICK_BUDGET_S = 90.0  # stop leasing new jobs after this; the request times out at 120
-DENIALS = {"42501", "CN001", "CN002"}
+DENIALS = {"42501", "CN001", "CN002", "CN004"}
 
 
 def utcnow() -> datetime:
@@ -205,13 +205,15 @@ class Worker:
                 """update counsel.jobs set status = 'dead', updated_at = %s,
                           last_error = coalesce(last_error, 'lease expired on final attempt')
                    where status = 'running' and lease_until < %s and attempts >= max_attempts
-                   returning id, agent""",
+                   returning id, agent, run_id""",
                 (now, now),
             )
             dead = cur.fetchall()
-            for job_id, agent in dead:
+            for job_id, agent, run_id in dead:
                 self._audit(agent, "dead_letter", f"job:{job_id}", "failed",
                             {"reason": "lease expired on final attempt"})
+                if run_id:
+                    self._rollback(run_id, "dead letter")
         return len(dead)
 
     # --- leasing and running ------------------------------------------------------
@@ -268,6 +270,7 @@ class Worker:
             self._audit(agent.name, "denied_write", f"run:{run_id}", "denied",
                         {"sqlstate": e.sqlstate, "message": str(e)}, run_id=run_id)
             self._finish(job, run_id, "denied", "done", str(e))
+            self._rollback(run_id, f"refused: {e.sqlstate}")
             log("WARNING", "agent write denied", agent=agent.name, run_id=str(run_id), sqlstate=e.sqlstate)
             return "denied"
         except Exception as e:  # noqa: BLE001 - any failure is retried, then dead-lettered
@@ -276,6 +279,7 @@ class Worker:
                 self._audit(agent.name, "dead_letter", f"run:{run_id}", "failed",
                             {"error": message}, run_id=run_id)
                 self._finish(job, run_id, "failed", "dead", message)
+                self._rollback(run_id, "dead letter")
                 log("ERROR", "job dead-lettered", agent=agent.name, job_id=job["id"], error=message)
                 return "dead"
             backoff = timedelta(seconds=30 * 2 ** (job["attempts"] - 1))
@@ -308,6 +312,14 @@ class Worker:
                           updated_at = %s where id = %s""",
                 (job_status, error, now, job["id"]),
             )
+
+    def _rollback(self, run_id, reason: str) -> None:
+        """A run that did not finish takes back what it wrote (0010_contact_rollback.sql)."""
+        with self.conn.transaction():
+            self.conn.execute(f'set local role "{ORCHESTRATOR_ROLE}"')
+            self.conn.execute(
+                "insert into counsel.run_rollbacks (run_id, reason) values (%s, %s) on conflict do nothing",
+                (run_id, reason))
 
     def _audit(self, agent: str, action: str, target: str, decision: str, detail: dict,
                run_id=None) -> None:

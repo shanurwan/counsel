@@ -5,7 +5,7 @@ description: >
   context before it asks for anything.
 owner: ops-lead
 tier: T3
-capabilities: [read_tasks, send_messages]
+capabilities: [read_tasks, read_updates, send_messages]
 triggers:
   schedule: "30 * * * *"
 suite: evals/nudge

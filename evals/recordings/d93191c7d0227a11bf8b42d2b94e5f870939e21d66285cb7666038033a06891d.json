@@ -1,0 +1,8 @@
+{
+  "latency_ms": 8907,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 47,
+  "prompt_tokens": 216,
+  "provider": "nvidia",
+  "text": "The upload endpoint returns a 500 error for files larger than 10 MB. Area: upload API. Missing: server logs, stack trace, exact file size tested, and steps to reproduce. No duplicate found."
+}

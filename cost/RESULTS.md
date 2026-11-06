@@ -4,13 +4,13 @@ One synthetic month (30 days, 80 employees, 24 customers, 1,846 runs) played twi
 
 | | Before | After | Change |
 |---|--:|--:|--:|
-| Total spend | $0.4303 | $0.3157 | -27% |
+| Total spend | $0.3891 | $0.2744 | -29% |
 | ask_handbook spend | $0.1561 | $0.0414 | -73% |
-| Paid model calls | 1,250 | 716 | -43% |
+| Paid model calls | 1,267 | 733 | -42% |
 | Answers served from cache | 0 | 534 | |
 | Answers that changed | | 0 of 798 | |
-| Hours of work absorbed (owner estimates) | 147.2 | 147.2 | |
-| Spend per hour absorbed | $0.0029 | $0.0021 | |
+| Hours of work absorbed (owner estimates) | 151.2 | 151.2 | |
+| Spend per hour absorbed | $0.0026 | $0.0018 | |
 
 What drives the saving is how often people ask the exact same thing. In this workload 65% of questions are copied from a list of common ones and the rest reworded from a few templates, so 88% of handbook calls repeated an earlier request. A real org's rate will differ: run `counsel report` on real traffic first. The cache key is the whole prompt, so a reworded question or an edited handbook page is a new request and is never served stale.
 

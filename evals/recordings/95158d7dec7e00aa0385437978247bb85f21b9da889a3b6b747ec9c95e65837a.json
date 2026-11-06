@@ -1,0 +1,8 @@
+{
+  "latency_ms": 2380,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 57,
+  "prompt_tokens": 240,
+  "provider": "nvidia",
+  "text": "The user reports the app crashes on startup with exit code 137. Area: application startup / crash reporting. Missing information: operating system, app version, steps to reproduce, full logs or stack trace, and whether this happens consistently or intermittently. No duplicate found."
+}

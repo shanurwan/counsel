@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+from typing import Callable
 
 import psycopg
 from psycopg.rows import dict_row
@@ -41,8 +42,12 @@ def _draft(conn: psycopg.Connection, draft_id: str) -> tuple[str, str, str]:
 
 
 def publish(conn: psycopg.Connection, draft_id: str, body: str | None = None,
-            at: datetime | None = None) -> str:
-    """Accept a draft, optionally edited. A support reply is posted to the customer as you."""
+            at: datetime | None = None, deliver: Callable[[str, str], None] | None = None) -> str:
+    """Accept a draft, optionally edited. A support reply is posted to the customer as you.
+
+    `deliver(kind, text)` sends it to a system outside this database, as you. It runs
+    last in the transaction: if it fails the draft stays pending, so you can retry.
+    """
     at = at or datetime.now(timezone.utc)
     with conn.transaction():
         kind, draft_body, _ = _draft(conn, draft_id)
@@ -62,6 +67,8 @@ def publish(conn: psycopg.Connection, draft_id: str, body: str | None = None,
             """update counsel.drafts set status = 'published', published_body = %s,
                       reviewed_at = %s, reviewed_by = session_user where id = %s""",
             (text, at, draft_id))
+        if deliver:
+            deliver(kind, text)
     return kind
 
 

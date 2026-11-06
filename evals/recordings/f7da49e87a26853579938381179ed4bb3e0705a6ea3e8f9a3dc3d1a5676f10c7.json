@@ -1,0 +1,8 @@
+{
+  "latency_ms": 2375,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 60,
+  "prompt_tokens": 199,
+  "provider": "nvidia",
+  "text": "The user requests SAML single sign-on support for an enterprise deployment. Area: Authentication/Enterprise features. Missing information: Specific SAML provider requirements, attribute mapping needs, SCIM provisioning requirements, and whether SP-initiated or IdP-initiated flow is preferred. no duplicate found"
+}
