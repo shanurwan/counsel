@@ -1,11 +1,10 @@
 """What each agent does, as journaled steps.
 
 Most agents never choose an action: the model only writes text, and which
-tables are read and written, and as which role, is fixed here (wall 1 of
-ADR-001). The support drafter is the exception on purpose. Its model can call
+tables are read and written, and as which role, is fixed here. The support drafter is the exception on purpose. Its model can call
 tools, and the tool layer accepts any verb on any table (tools.py), so the
 agent's Postgres role is the only thing between a hijacked model and the data.
-That is the setup of the incidents in docs/incidents/, with the walls on.
+That is the setup of the incidents in docs/bench.md, with the walls on.
 """
 
 from __future__ import annotations

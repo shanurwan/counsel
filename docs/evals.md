@@ -81,7 +81,7 @@ gives 62%, and two failures in 11 give 52%, which fails the gate.
 Latest: [`evals/RESULTS.md`](../evals/RESULTS.md).
 
 **What the gate caught.** The first run of the digest suite failed it, 8 of 11.
-Every failure was a failure the job description names:
+Every failure was one the suite was written to catch:
 - **Wrong credit.** The digest credited Maya's work to Bruno, the task owner.
   The cause was a data bug, not the model: the digest's input carried each
   note's text but not its author, so the model could only guess.

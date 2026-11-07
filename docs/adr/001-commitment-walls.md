@@ -12,22 +12,25 @@ compromised runtime can send any SQL it likes.
 
 ## Decision
 
-Four independent walls. Any one holding is enough.
+Three independent walls. Any one holding is enough.
 
-1. **No tool exists for it.** Agents act through typed tools from their
-   registry entry. No tool takes an owner, due date or status.
-2. **The credential cannot do it.** Each agent is its own Postgres role,
+1. **The credential cannot do it.** Each agent is its own Postgres role,
    compiled from `agents/*.yaml`. Agents choose named capabilities, never raw
    grants, and no capability template grants `INSERT`, `UPDATE`, `DELETE` or
    `TRUNCATE` on `work.tasks`. The runtime logs in as `counsel_runtime`, which is
    `NOINHERIT`: it holds nothing until it `SET ROLE`s to one agent.
-3. **The database refuses it.** A trigger on `work.tasks` rejects any
+2. **The database refuses it.** A trigger on `work.tasks` rejects any
    commitment change, insert, delete or truncate made while acting as an agent
    (SQLSTATE `CN001`). This covers a future grant added by mistake.
-4. **CI proves it on every push.** `counsel audit` asks the live database what
+3. **CI proves it on every push.** `counsel audit` asks the live database what
    each agent role can actually do: column and table privileges, role
    attributes, memberships, owned objects and `SECURITY DEFINER` functions it
    can execute. Any finding fails the build.
+
+The tool layer is deliberately not a wall. Most agents never choose an action,
+because code fixes what they read and write. `support_drafter` is the exception:
+its model can name any verb on any table (`tools.py`), so the role is the whole
+policy and there is no filter in Python that someone could loosen.
 
 ### "Acting as an agent" follows only real privilege paths
 
