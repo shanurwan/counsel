@@ -8,6 +8,9 @@ of them can set a commitment: who owns a task, when it is due, or its status.
 That is not a rule in a prompt. Postgres refuses the write, and CI proves it on
 every push.
 
+**[Try to make it do damage](https://shanurwan.github.io/counsel/)**: real Postgres
+in your browser, running these migrations.
+
 ## The proof, first
 
 CI builds this table from a live Postgres on every push using
@@ -227,7 +230,7 @@ When someone disputes an output, the answer is a test case. `counsel challenge <
 adds a case to its suite, and from then on the gate holds the agent to it.
 
 Every case, step by step from its journal, is at
-**[shanurwan.github.io/counsel](https://shanurwan.github.io/counsel/)**. CI
+**[shanurwan.github.io/counsel/replay.html](https://shanurwan.github.io/counsel/replay.html)**. CI
 rebuilds it on each push to main; the data is
 [`replay.json`](https://shanurwan.github.io/counsel/replay.json).
 

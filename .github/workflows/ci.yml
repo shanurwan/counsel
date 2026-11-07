@@ -78,10 +78,22 @@ jobs:
             cat evals/RESULTS.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Build the replay site from this run's journal
+      - name: Build the site from this run's journal
         run: |
           mkdir _site
-          cp site/index.html evals/replay.json _site/
+          cp site/index.html site/replay.html site/og.png evals/replay.json _site/
+          cp bench/results.json _site/bench.json
+          cp cost/results.json _site/cost.json
+          # One file, so a new migration reaches the page's Postgres by itself.
+          cat db/migrations/*.sql db/generated/agents.sql db/seed/harbor_labs.sql > _site/schema.sql
+
+      - name: The page's Postgres still loads the schema and refuses
+        run: |
+          schema="$PWD/_site/schema.sql"
+          cp scripts/check_page_db.mjs "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP"
+          npm install --silent --no-audit --no-fund @electric-sql/pglite@0.3.14
+          node check_page_db.mjs "$schema"
 
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
