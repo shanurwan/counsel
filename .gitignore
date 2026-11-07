@@ -14,3 +14,4 @@ tfplan
 .build/
 evals/replay.json
 _site/
+node_modules/

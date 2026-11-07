@@ -1,6 +1,6 @@
 // The demo page runs every migration in PGlite. If one stops loading there, or an
 // attack the page shows stops being refused, the page is wrong, so CI fails here.
-// Usage: node check_page_db.mjs <schema.sql>
+// Usage: node scripts/page_db/check.mjs <schema.sql>
 import { readFileSync } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 
