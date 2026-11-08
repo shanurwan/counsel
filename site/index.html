@@ -150,6 +150,27 @@ mark { background: color-mix(in srgb, var(--red) 22%, transparent); color: #ffc1
 .nothing { font-size: clamp(38px, 4.4vw, 56px); line-height: 1; font-weight: 600; letter-spacing: -.035em; margin: 0 0 16px !important; }
 .pane .muted { color: var(--muted); }
 
+/* consent per action */
+.consent { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 28px; align-items: start; }
+.ask { background: var(--paper); color: var(--ink); border-radius: 14px; padding: 30px 32px; box-shadow: 0 40px 90px -50px rgba(160, 180, 255, .35); }
+.ask .said { font: 12px var(--mono); color: #6d6c66; margin: 0 0 14px; }
+.ask h3 { font-size: 22px; line-height: 1.25; letter-spacing: -.02em; font-weight: 600; margin: 0 0 18px; }
+.ask dl { margin: 0; display: grid; gap: 14px; }
+.ask dt { font: 500 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #6d6c66; }
+.ask dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.ask .note { background: #fff; border: 1px solid #dcdad2; border-left: 3px solid var(--amber); border-radius: 8px; padding: 10px 12px; }
+.ask .btns { display: flex; gap: 10px; margin-top: 22px; }
+.ask .btns span { flex: 1; text-align: center; border-radius: 8px; padding: 9px; font-weight: 500; font-size: 15px; border: 1px solid #cfcdc5; }
+.ask .btns .go { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.tries { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.tries li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 16px 22px; border-bottom: 1px solid var(--line); }
+.tries li:last-child { border-bottom: 0; }
+.tries .who { font-weight: 500; }
+.tries .res { font: 500 12px var(--mono); letter-spacing: .04em; text-transform: uppercase; align-self: start; padding-top: 3px; }
+.tries .res.no { color: var(--red); } .tries .res.yes { color: var(--green); } .tries .res.wait { color: var(--amber); }
+.tries code { grid-column: 1 / -1; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.tries .src { font-size: 13.5px; color: var(--faint); padding: 12px 22px; background: rgba(255, 255, 255, .02); display: block; }
+
 /* the incidents */
 .table { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 8px 26px; overflow: hidden; }
 .incidents { width: 100%; border-collapse: collapse; }
@@ -216,6 +237,7 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
   .tabs button[aria-selected="true"] { border-bottom-color: var(--text); }
   .tabs span { display: none; }
   .triptych { grid-template-columns: minmax(0, 1fr); }
+  .consent { grid-template-columns: minmax(0, 1fr); }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cols > div:first-child { grid-column: 1 / -1; }
@@ -238,6 +260,8 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
   .incidents td { padding: 2px 0; border: 0; white-space: normal !important; }
   .stat { padding: 20px 16px; }
   .failure { padding: 22px; }
+  .ask { padding: 22px 20px; }
+  .tries li { padding: 14px 16px; }
   .cta { padding: 56px 18px; }
   .closing, footer { margin-top: 88px; }
 }
@@ -257,6 +281,7 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
       <a href="#try">Console</a>
       <a href="#agents">Agents</a>
       <a href="#ticket">Injection</a>
+      <a href="#consent">Consent</a>
       <a href="#incidents">Incidents</a>
       <a href="#month">The month</a>
       <a href="replay.html">Replay</a>
@@ -322,10 +347,41 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
   </div>
 </section>
 
-<section id="incidents" aria-labelledby="h-incidents">
+<section id="consent" aria-labelledby="h-consent">
   <div class="wrap">
     <div class="head rise">
-      <p class="kicker">03 · Incident replay</p>
+      <p class="kicker">03 · Consent per action</p>
+      <h2 id="h-consent">Connecting an assistant is not approving what it does next.</h2>
+      <p class="sub">A sign-in token says who is calling, not that they chose this call. So the hosted MCP server's one write only proposes. It is posted when the person approves that exact text in their own browser, and Postgres refuses every other way.</p>
+    </div>
+    <div class="consent rise">
+      <div class="ask">
+        <p class="said">approve.html · what the person sees</p>
+        <h3>Your assistant wants to post this note as you</h3>
+        <dl>
+          <div><dt>On your task</dt><dd>Rotate staging keys</dd></div>
+          <div><dt>Exactly this text</dt><dd class="note">Staging keys rotated; prod rotation booked for Thursday.</dd></div>
+          <div><dt>Expires</dt><dd>15 minutes after it was proposed</dd></div>
+        </dl>
+        <div class="btns"><span>Deny</span><span class="go">Post it</span></div>
+      </div>
+      <ul class="tries">
+        <li><span class="who">Claude approves its own proposal, with the token it holds</span><span class="res no">Refused</span><code>CN011 an assistant cannot approve; open the link and sign in yourself</code></li>
+        <li><span class="who">Anyone with the public key and no sign-in</span><span class="res no">Refused</span><code>42501 permission denied for function counsel_decide</code></li>
+        <li><span class="who">The person, signed in over ten minutes ago</span><span class="res wait">Sign in again</span><code>CN012 sign in again to approve</code></li>
+        <li><span class="who">The person, approving different text than they read</span><span class="res no">Refused</span><code>CN011 the text changed since you read it</code></li>
+        <li><span class="who">The person, approving what they read</span><span class="res yes">Posted</span><code>one note, credited to aiko, attributed to the client that proposed it</code></li>
+        <li><span class="who">The same approval, sent again</span><span class="res no">Refused</span><code>CN011 this proposal was already decided or has expired</code></li>
+        <li class="src">End to end against Supabase Auth, PostgREST and the MCP SDK's OAuth client, plus a test for each refusal. <a href="https://github.com/shanurwan/counsel/blob/main/docs/per-action-consent.md">How it works, and why the client's own prompt is not enough</a></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="incidents" class="band" aria-labelledby="h-incidents">
+  <div class="wrap">
+    <div class="head rise">
+      <p class="kicker">04 · Incident replay</p>
       <h2 id="h-incidents">The attacks from real AI incidents, replayed.</h2>
       <p class="sub">Rebuilt on a made-up company, not the original systems. The model is scripted to obey the attacker every time, first with the broad access the real incident had, then on Counsel. Harm is counted from the database afterwards. CI runs this on every push.</p>
     </div>
@@ -338,10 +394,10 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
   </div>
 </section>
 
-<section id="month" class="band" aria-labelledby="h-month">
+<section id="month" aria-labelledby="h-month">
   <div class="wrap">
     <div class="head rise">
-      <p class="kicker">04 · Cost and value</p>
+      <p class="kicker">05 · Cost and value</p>
       <h2 id="h-month">One simulated month.</h2>
       <p class="sub" id="month-sub"></p>
     </div>
@@ -353,7 +409,7 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
 <section aria-labelledby="h-wrong" id="wrong" hidden>
   <div class="wrap">
     <div class="head">
-      <p class="kicker">05 · Known failure</p>
+      <p class="kicker">06 · Known failure</p>
       <h2 id="h-wrong">What it still gets wrong.</h2>
       <p class="sub" id="wrong-sub"></p>
     </div>
