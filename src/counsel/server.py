@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import time
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -18,6 +19,7 @@ import psycopg
 from . import github, warehouse
 from .cli import build_worker
 from .log import log
+from .runtime import STOPPING
 
 WAREHOUSE_CUTOFF_S = 85.0  # leave the export room inside Cloud Run's 120 s request timeout
 
@@ -69,8 +71,16 @@ def _export(conn) -> dict:
         return {"error": str(e)[:200]}
 
 
+def _stop(signum, _frame) -> None:
+    # Cloud Run sends SIGTERM before replacing or removing an instance, then waits
+    # 10 s. Leasing stops; a run already going finishes or resumes from its journal.
+    STOPPING.set()
+    log("WARNING", "SIGTERM: no new jobs from this instance", signal=signum)
+
+
 def main() -> None:
     port = int(os.environ.get("PORT", "8080"))
+    signal.signal(signal.SIGTERM, _stop)
     log("INFO", "listening", port=port)
     # Cloud Run routes to the container's port; binding all interfaces is required.
     HTTPServer(("0.0.0.0", port), Handler).serve_forever()  # nosec B104

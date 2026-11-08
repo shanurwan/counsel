@@ -317,6 +317,12 @@ update as text and the task was unchanged.
 Real faults in the running system, how each was found, and what changed:
 [docs/postmortems.md](docs/postmortems.md).
 
+The same exercise pointed at the parts I trust: the runtime, its time limits and
+its deploys. A worker kept writing after its lease expired, twice in production,
+and a model call could be paid for twice; both are fixed and tested. The runtime
+login can still choose which ticket an agent sees, which is planned:
+[docs/red-team.md](docs/red-team.md).
+
 ## Security pipeline
 
 Every push runs, alongside the commitment checks:

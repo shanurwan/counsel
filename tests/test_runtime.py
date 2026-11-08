@@ -46,7 +46,8 @@ class Clock:
 @pytest.fixture
 def admin(database_url):
     with psycopg.connect(database_url, autocommit=True) as conn:
-        conn.execute("""truncate counsel.run_rollbacks, counsel.steps, counsel.model_calls, counsel.runs, counsel.jobs,
+        conn.execute("""truncate counsel.run_rollbacks, counsel.steps, counsel.model_calls,
+                                 counsel.model_call_intents, counsel.runs, counsel.jobs,
                                  counsel.questions, counsel.answers, counsel.drafts""")
         yield conn
 

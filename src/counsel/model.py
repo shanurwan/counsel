@@ -16,7 +16,7 @@ import json
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable, Protocol
 
@@ -50,6 +50,9 @@ class Completion:
     latency_ms: int
     prompt_tokens: int | None = None
     output_tokens: int | None = None
+    # Attempts that failed before this one answered (timeouts, 5xx, a retired model).
+    # Without them the journal showed a 150 s call as 1.5 s (docs/red-team.md, R2).
+    failed_attempts: tuple[str, ...] = ()
 
 
 class Model(Protocol):
@@ -91,6 +94,11 @@ class ChatModel:
     provider: str = "nvidia"
     timeout_s: float = 45.0
     retries: int = 2
+    # One call, every model and retry included, must end well inside the job's
+    # 150 s lease (runtime.LEASE), even when a second provider is tried after this
+    # one. Without a total, two models x three attempts x 45 s could run for 270 s
+    # (docs/red-team.md, R2).
+    budget_s: float = 60.0
     # The free tier allows about 40 requests a minute; stay under it.
     min_interval_s: float = 1.6
     temperature: float = 0.2
@@ -101,17 +109,21 @@ class ChatModel:
     def complete(self, messages: list[dict], *, max_tokens: int = 800) -> Completion:
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         errors = []
+        deadline = time.monotonic() + self.budget_s
         for model in self.models:
             for attempt in range(self.retries + 1):
                 wait = self._last_call + self.min_interval_s - time.monotonic()
                 if wait > 0:
                     self.sleep(wait)
+                remaining = deadline - time.monotonic()
+                if remaining < 1:
+                    raise ModelError(f"no answer within {self.budget_s:.0f} s: " + " | ".join(errors))
                 self._last_call = time.monotonic()
 
                 body = {"model": model, "messages": messages, "max_tokens": max_tokens,
                         "temperature": self.temperature, **self.extra_body()}
                 started = time.monotonic()
-                status, data = self.transport(self.url, headers, body, self.timeout_s)
+                status, data = self.transport(self.url, headers, body, min(self.timeout_s, remaining))
                 latency = int((time.monotonic() - started) * 1000)
 
                 if status == 200:
@@ -130,8 +142,9 @@ class ChatModel:
                         latency_ms=latency,
                         prompt_tokens=usage.get("prompt_tokens"),
                         output_tokens=usage.get("completion_tokens"),
+                        failed_attempts=tuple(errors),
                     )
-                errors.append(f"{model}: {status} {str(data)[:200]}")
+                errors.append(f"{model}: {status} {str(data)[:200]} after {latency} ms")
                 if status in (404, 410):
                     break  # retired or not enabled for this key: next model
                 if status == 429 or status >= 500:
@@ -170,11 +183,15 @@ class FallbackModel:
         errors = []
         for model in self.models:
             try:
-                return model.complete(messages, max_tokens=max_tokens)
+                result = model.complete(messages, max_tokens=max_tokens)
             except ModelError as e:
                 if e.model is not None:
                     raise
                 errors.append(str(e))
+                continue
+            if errors:
+                result = replace(result, failed_attempts=(*errors, *result.failed_attempts))
+            return result
         raise ModelError(" || ".join(errors))
 
 
