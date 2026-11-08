@@ -390,6 +390,13 @@ Each piece has prior art, and some of it is further along than Counsel:
   LangGraph, Pydantic AI) pauses a run in process, and their own docs say it is not
   an authorization boundary. Counsel's approval is checked by the database against a
   hash of the exact text ([docs/per-action-consent.md](docs/per-action-consent.md)).
+- **Small projects close to this one:**
+  [LedgerGuard](https://github.com/Val1-IT/Arvanta-Ledgerguard) sits between an agent
+  and a Postgres system of record and commits each approved change in one
+  transaction, with policy in its TypeScript runtime;
+  [Enterprise Agentic AI](https://github.com/Poochaman/enterprise-agentic-ai) binds an
+  approval to the digest of the exact action in Python. Counsel's difference is where
+  the check lives: in the database's own grants and functions.
 - **Incident replay as tests** was published before Counsel's bench, by
   [Chronicle](https://arxiv.org/abs/2609.20625). The bench differs in using named
   public incidents, a control arm with broad access, and harm counted from the
