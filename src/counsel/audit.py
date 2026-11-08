@@ -44,10 +44,13 @@ MCP_ROLE = "counsel_mcp"
 MCP_READS = ("counsel.runs", "counsel.steps", "counsel.model_calls", "counsel.audit_log", "counsel.drafts",
              "counsel.answers", "counsel.outbound_messages", "counsel.run_costs", "counsel.value_ledger",
              "counsel.agent_settings")
+# A signed-in person's own identity and work, for a user id from a verified token (0013_logins.sql).
+MCP_CALLS = ("counsel.person_for_login(uuid)", "counsel.work_for_login(uuid)")
 
 PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
           "reader": READER_ROLE, "reader_allowed": [f"SELECT {t}" for t in READER_ALLOWED],
-          "mcp": MCP_ROLE, "mcp_allowed": [f"SELECT {t}" for t in MCP_READS] + ["INSERT counsel.questions"]}
+          "mcp": MCP_ROLE, "mcp_allowed": [f"SELECT {t}" for t in MCP_READS] + ["INSERT counsel.questions"]
+          + [f"EXECUTE {f}" for f in MCP_CALLS]}
 
 
 # A login may hold exactly its allowed privileges, no attributes and no memberships.
@@ -65,6 +68,18 @@ LOGIN_CHECK = """
                or (p.priv in ('SELECT', 'INSERT', 'UPDATE', 'REFERENCES')
                    and has_any_column_privilege(%({role})s, c.oid, p.priv)))
           and not (p.priv || ' ' || c.oid::regclass::text = any(%({allowed})s))
+        union all
+        -- A SECURITY DEFINER function runs with its owner's rights, so being able to
+        -- call one is a privilege like any grant. Counsel's own schemas only.
+        select %({role})s, format('EXECUTE %%s', p.oid::regprocedure)
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+        where exists (select from pg_roles where rolname = %({role})s)
+          and p.prosecdef
+          and p.prorettype not in ('trigger'::regtype, 'event_trigger'::regtype)
+          and n.nspname in ('counsel', 'work', 'support', 'kb')
+          and has_function_privilege(%({role})s, p.oid, 'EXECUTE')
+          and not ('EXECUTE ' || p.oid::regprocedure::text = any(%({allowed})s))
         union all
         select r.rolname, a.attr
         from pg_roles r

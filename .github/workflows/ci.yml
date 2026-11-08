@@ -79,9 +79,16 @@ jobs:
           fi
 
       - name: Build the site from this run's journal
+        env:
+          # Public values: the consent page signs people in with the publishable key.
+          SUPABASE_URL: ${{ vars.COUNSEL_SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.COUNSEL_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           mkdir _site
           cp site/index.html site/replay.html site/og.png evals/replay.json _site/
+          sed -e "s|__COUNSEL_SUPABASE_URL__|${SUPABASE_URL:-__COUNSEL_SUPABASE_URL__}|" \
+              -e "s|__COUNSEL_SUPABASE_PUBLISHABLE_KEY__|${SUPABASE_PUBLISHABLE_KEY:-__COUNSEL_SUPABASE_PUBLISHABLE_KEY__}|" \
+              site/consent.html > _site/consent.html
           cp bench/results.json _site/bench.json
           cp cost/results.json _site/cost.json
           # One file, so a new migration reaches the page's Postgres by itself.
@@ -173,5 +180,9 @@ jobs:
         run: |
           digest=$(gcloud artifacts docker images describe "${IMAGE}:${GITHUB_SHA}" --format='value(image_summary.digest)')
           gcloud run services update counsel --region "$REGION" --image "${IMAGE}@${digest}" --quiet
+          # The hosted MCP server runs the same image, once infra/mcp.tf has created it.
+          if gcloud run services describe counsel-mcp --region "$REGION" --format='value(name)' >/dev/null 2>&1; then
+            gcloud run services update counsel-mcp --region "$REGION" --image "${IMAGE}@${digest}" --quiet
+          fi
           gcloud run services describe counsel --region "$REGION" \
             --format='value(status.latestReadyRevisionName,status.traffic[0].percent)'

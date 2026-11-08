@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counsel · Connect an assistant</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Supabase Auth sends people here (Site URL + authorization path) with an authorization_id.
+   The page signs them in, shows who is asking and where they will be sent, and approves or denies. */
+:root {
+  --bg: #0a0a0b; --panel: #121214; --raised: #1a1a1d; --line: #27272b; --text: #f5f5f3; --muted: #a0a09b;
+  --red: #ff5340; --amber: #f2b84b; --green: #41d99a;
+  --sans: Geist, -apple-system, "Segoe UI", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); padding: 24px 16px; }
+main { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+.brand { font-weight: 600; margin: 0 0 22px; display: flex; align-items: center; gap: 9px; }
+.brand svg { flex: none; }
+h1 { font-size: 22px; line-height: 1.25; letter-spacing: -.02em; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0 0 14px; color: var(--muted); }
+label { display: block; font-size: 14px; color: var(--muted); margin: 14px 0 6px; }
+input { width: 100%; font: inherit; color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+input:focus { outline: 2px solid var(--text); outline-offset: 1px; }
+button { font: 500 15px var(--sans); border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--raised); color: var(--text); }
+button.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+button:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 10px; margin-top: 20px; }
+.row button { flex: 1; }
+dl { margin: 16px 0 0; display: grid; gap: 12px; }
+dt { font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+.host { font: 500 16px var(--mono); }
+.warn { color: var(--amber); font-size: 14px; margin-top: 6px; }
+ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.err { color: var(--red); font-size: 14px; margin-top: 12px; }
+.fine { font-size: 13px; color: var(--muted); margin: 20px 0 0; }
+.fine a, .link { color: var(--muted); background: none; border: 0; padding: 0; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <p class="brand"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1a1a1d"/><path d="M9 9l14 14M23 9L9 23" stroke="#ff5340" stroke-width="4" stroke-linecap="round"/></svg>Counsel</p>
+
+  <section id="loading"><p>Loading…</p></section>
+
+  <section id="problem" hidden>
+    <h1>This link can't be used</h1>
+    <p id="problem-text"></p>
+  </section>
+
+  <form id="signin" hidden>
+    <h1>Sign in to connect an assistant</h1>
+    <p>Accounts are created by your Counsel owner. There is no sign-up here.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <div class="row"><button class="primary" type="submit" id="signin-button">Sign in</button></div>
+    <p class="err" id="signin-error" hidden></p>
+  </form>
+
+  <section id="consent" hidden>
+    <h1><span id="client-name"></span> wants to use Counsel as you</h1>
+    <p>Signed in as <span id="user-email"></span>. <button class="link" type="button" id="signout">Not you?</button></p>
+    <dl>
+      <div><dt>After you answer, you go to</dt><dd class="host" id="redirect-host"></dd><p class="warn" id="local-warning" hidden>This address is on your own computer. Only continue if you just started this connection from an app on this device.</p></div>
+      <div><dt>It will be able to</dt><dd><ul>
+        <li>See your own open tasks, and who you are in Counsel</li>
+        <li>Read the agents' journal, costs and drafts waiting for review</li>
+        <li>Ask the handbook a question</li>
+      </ul></dd></div>
+      <div><dt>It will not be able to</dt><dd><ul>
+        <li>Change an owner, due date or status</li>
+        <li>Publish a draft or message anyone</li>
+      </ul></dd></div>
+    </dl>
+    <div class="row">
+      <button type="button" id="deny">Deny</button>
+      <button class="primary" type="button" id="approve">Allow</button>
+    </div>
+    <p class="err" id="consent-error" hidden></p>
+  </section>
+
+  <p class="fine">Counsel's agents run on a synthetic company. <a href="./">What Counsel is</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script>
+(() => {
+  // Filled in by CI from the repository variables COUNSEL_SUPABASE_URL and
+  // COUNSEL_SUPABASE_PUBLISHABLE_KEY. The publishable key is meant to be public.
+  const SUPABASE_URL = "__COUNSEL_SUPABASE_URL__";
+  const SUPABASE_KEY = "__COUNSEL_SUPABASE_PUBLISHABLE_KEY__";
+
+  const $ = id => document.getElementById(id);
+  const show = id => ["loading", "problem", "signin", "consent"].forEach(s => { $(s).hidden = s !== id; });
+  const problem = text => { $("problem-text").textContent = text; show("problem"); };
+  const authorizationId = new URLSearchParams(location.search).get("authorization_id");
+
+  if (SUPABASE_URL.startsWith("__") || !window.supabase) return problem("Sign-in isn't configured for this site yet.");
+  if (!authorizationId) return problem("Open this page from the assistant you are connecting. It needs an authorization request.");
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function load() {
+    show("loading");
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return show("signin");
+    const { data, error } = await sb.auth.oauth.getAuthorizationDetails(authorizationId);
+    if (error) return problem(error.message || "This request has expired or was already answered.");
+    // Consent given before for the same access: Supabase approves at once.
+    if (data.redirect_url && !data.authorization_id) return location.assign(data.redirect_url);
+    const redirect = new URL(data.redirect_uri);
+    $("client-name").textContent = data.client?.name || "An assistant";
+    $("user-email").textContent = user.email;
+    $("redirect-host").textContent = redirect.host;
+    $("local-warning").hidden = !["localhost", "127.0.0.1", "[::1]"].includes(redirect.hostname);
+    show("consent");
+  }
+
+  $("signin").addEventListener("submit", async e => {
+    e.preventDefault();
+    $("signin-button").disabled = true; $("signin-error").hidden = true;
+    const { error } = await sb.auth.signInWithPassword({ email: $("email").value, password: $("password").value });
+    $("signin-button").disabled = false;
+    if (error) { $("signin-error").textContent = error.message; $("signin-error").hidden = false; return; }
+    load();
+  });
+
+  async function answer(approve) {
+    $("approve").disabled = $("deny").disabled = true; $("consent-error").hidden = true;
+    // Both redirect the browser back to the assistant on success.
+    const { error } = approve ? await sb.auth.oauth.approveAuthorization(authorizationId)
+                              : await sb.auth.oauth.denyAuthorization(authorizationId);
+    if (error) {
+      $("consent-error").textContent = error.message; $("consent-error").hidden = false;
+      $("approve").disabled = $("deny").disabled = false;
+    }
+  }
+  $("approve").addEventListener("click", () => answer(true));
+  $("deny").addEventListener("click", () => answer(false));
+  $("signout").addEventListener("click", async () => { await sb.auth.signOut(); show("signin"); });
+
+  load();
+})();
+</script>
+</body>
+</html>

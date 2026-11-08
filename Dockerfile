@@ -10,7 +10,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
-RUN pip install . && useradd --system --uid 10001 counsel
+# One image for both services: the runtime, and the hosted MCP server (counsel-mcp --http).
+RUN pip install ".[mcp]" && useradd --system --uid 10001 counsel
 
 # The registry and compiled grants travel with the image so a revision always
 # runs the agents it was tested with.

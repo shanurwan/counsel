@@ -1,5 +1,5 @@
 """counsel validate | compile | audit | bench | eval | ask | standup | review | rollback | sync | warehouse |
-report | maturity | trace | simulate | challenge | new | inbox"""
+report | maturity | trace | simulate | challenge | new | inbox | link-login"""
 
 from __future__ import annotations
 
@@ -152,6 +152,28 @@ def cmd_ask(args: argparse.Namespace) -> int:
         qid = conn.execute("insert into counsel.questions (body) values (%s) returning id",
                            (args.question,)).fetchone()[0]
     print(f"queued question {qid}; the next tick answers it")
+    return 0
+
+
+def cmd_link_login(args: argparse.Namespace) -> int:
+    """Link a Supabase Auth sign-in to a person, so the hosted MCP server can show them their work.
+    Run by an owner, on an admin connection; nobody links themselves."""
+    import psycopg
+
+    with psycopg.connect(_dsn(args)) as conn:
+        user = conn.execute("select id from auth.users where lower(email) = lower(%s)", (args.email,)).fetchone()
+        if not user:
+            print(f"no Supabase Auth user with email {args.email}; create one first", file=sys.stderr)
+            return 1
+        person = conn.execute("select id from work.people where handle = %s", (args.handle,)).fetchone()
+        if not person:
+            print(f"no person with handle {args.handle}", file=sys.stderr)
+            return 1
+        conn.execute("""insert into counsel.logins (auth_user_id, person_id) values (%s, %s)
+                        on conflict (auth_user_id) do update
+                        set person_id = excluded.person_id, linked_by = current_user, linked_at = now()""",
+                     (user[0], person[0]))
+    print(f"linked {args.email} to {args.handle}")
     return 0
 
 
@@ -471,6 +493,12 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("tick", help="run one scheduler tick (as counsel_runtime)")
     p.add_argument("--dsn")
     p.set_defaults(fn=cmd_tick)
+
+    p = sub.add_parser("link-login", help="link a Supabase Auth sign-in to a person, for the hosted MCP server")
+    p.add_argument("email")
+    p.add_argument("handle")
+    p.add_argument("--dsn")
+    p.set_defaults(fn=cmd_link_login)
 
     p = sub.add_parser("standup", help="post a person's standup; proposed notes need their approval")
     p.add_argument("handle")

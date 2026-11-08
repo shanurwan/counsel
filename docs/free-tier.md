@@ -39,10 +39,15 @@ The worst case holds as the platform grows, because it is set by the request tim
 not by what a tick does. A tick now also polls GitHub and loads finished runs, and the
 export is skipped once a tick has used 85 s.
 
-Everything else added runs outside GCP or costs nothing there: the MCP server is a
-local process and is left out of the Cloud Run image, GitHub reads are free, and
+Everything else added runs outside GCP or costs nothing there: GitHub reads are free, and
 `nudge` and `drift_watcher` make no model calls. A second model provider is off
 unless a key is set.
+
+The hosted MCP server (`infra/mcp.tf`) is a second Cloud Run service on the same
+free allowance: scale to zero, one instance, a 30 s timeout and CPU only during
+requests, and each call is a few milliseconds of SQL with no model call. People who
+sign in to it count as Supabase monthly active users (50,000 on Free). The local
+stdio server costs nothing.
 
 ## If something still costs money
 

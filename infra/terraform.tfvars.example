@@ -1,2 +1,3 @@
 # Copy to terraform.tfvars (not committed).
-billing_account = "XXXXXX-XXXXXX-XXXXXX"
+billing_account      = "XXXXXX-XXXXXX-XXXXXX"
+supabase_auth_issuer = "https://<project-ref>.supabase.co/auth/v1"

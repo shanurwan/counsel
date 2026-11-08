@@ -9,17 +9,29 @@ commitment. Publishing stays in `counsel review`, on a person's own connection.
 Every tool result can contain text from a ticket, an issue or a model, so clients
 must treat it as data. It is returned as JSON and never presented as instructions.
 
-Transport is stdio: a local process per client, nothing hosted, no new surface.
+Two transports. stdio is a local process per client, with nothing hosted. With
+--http it is hosted: people sign in with this project's Supabase Auth (OAuth 2.1),
+every request carries a token checked by mcp_auth.SupabaseTokenVerifier, and two more
+tools answer for the signed-in person: who they are, and their own open work. Those
+go through counsel.person_for_login and counsel.work_for_login, so the login still
+holds no grant on work.tasks (db/migrations/0013_logins.sql).
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import psycopg
+from mcp.server.auth.middleware.auth_context import get_access_token
+from mcp.server.auth.provider import TokenVerifier
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 
 from . import audit, registry
@@ -48,8 +60,20 @@ def _limit(limit: int) -> int:
     return max(1, min(int(limit), MAX_ROWS))
 
 
-def build(dsn: str, agents_dir: Path | None = None) -> MCPServer:
-    server = MCPServer("counsel")
+def _signed_in() -> tuple[str, str]:
+    """The person behind this request, and the OAuth client acting for them."""
+    token = get_access_token()
+    if token is None or not token.subject:
+        raise PermissionError("sign in first")
+    # One line per call: who, through which client. Cloud Run keeps stdout.
+    print(json.dumps({"event": "mcp_call", "sub": token.subject, "client_id": token.client_id,
+                      "audience_bound": token.resource is not None}), file=sys.stderr, flush=True)
+    return token.subject, token.client_id
+
+
+def build(dsn: str, agents_dir: Path | None = None, *, auth: AuthSettings | None = None,
+          token_verifier: TokenVerifier | None = None) -> MCPServer:
+    server = MCPServer("counsel", auth=auth, token_verifier=token_verifier)
 
     def connect() -> psycopg.Connection:
         return psycopg.connect(dsn, autocommit=True, connect_timeout=10)
@@ -152,14 +176,61 @@ def build(dsn: str, agents_dir: Path | None = None) -> MCPServer:
                 (question.strip(),)))
         return _json(rows[0] if rows else {"answer": None, "note": "not answered yet"})
 
+    if token_verifier is None:
+        return server
+
+    @server.tool(annotations=READ_ONLY)
+    def whoami() -> str:
+        """Who you are signed in as, and which person in Counsel that sign-in is linked to."""
+        subject, client_id = _signed_in()
+        with connect() as conn:
+            person = _rows(conn.execute("select * from counsel.person_for_login(%s)", (subject,)))
+        return _json({"auth_user_id": subject, "client_id": client_id,
+                      "person": person[0] if person else None,
+                      **({} if person else {"note": "not linked yet: ask a Counsel owner to run counsel link-login"})})
+
+    @server.tool(annotations=READ_ONLY)
+    def my_work() -> str:
+        """Your own unfinished tasks: title, team, status and due date. Read only; owner, due
+        date and status are changed by people in the work system, never through Counsel."""
+        subject, _ = _signed_in()
+        with connect() as conn:
+            return _json(_rows(conn.execute("select * from counsel.work_for_login(%s)", (subject,))))
+
     return server
 
 
-def main() -> None:
-    dsn = os.environ.get("COUNSEL_MCP_URL")
-    if not dsn:
-        raise SystemExit("set COUNSEL_MCP_URL to a connection string for the counsel_mcp login")
-    build(dsn).run("stdio")
+def _env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise SystemExit(f"set {name} (see docs/mcp.md)")
+    return value
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(prog="counsel-mcp")
+    parser.add_argument("--http", action="store_true",
+                        help="serve over streamable HTTP, signed in with this project's Supabase Auth")
+    args = parser.parse_args(argv)
+    dsn = _env("COUNSEL_MCP_URL")
+    if not args.http:
+        build(dsn).run("stdio")
+        return
+
+    from .mcp_auth import SupabaseTokenVerifier
+
+    issuer = _env("COUNSEL_AUTH_ISSUER")      # https://<ref>.supabase.co/auth/v1
+    public_url = _env("COUNSEL_MCP_PUBLIC_URL")  # this server's /mcp URL, as clients reach it
+    require_audience = os.environ.get("COUNSEL_MCP_REQUIRE_AUDIENCE") == "1"
+    server = build(
+        dsn,
+        auth=AuthSettings(issuer_url=issuer, resource_server_url=public_url,
+                          validate_token_resource=require_audience),
+        token_verifier=SupabaseTokenVerifier(issuer, public_url, require_audience=require_audience),
+    )
+    server.run("streamable-http", host="0.0.0.0", port=int(os.environ.get("PORT", "8080")),  # nosec B104
+               stateless_http=True, json_response=True,
+               transport_security=TransportSecuritySettings(allowed_hosts=[urlparse(public_url).netloc]))
 
 
 if __name__ == "__main__":
