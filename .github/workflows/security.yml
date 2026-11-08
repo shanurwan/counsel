@@ -51,18 +51,36 @@ jobs:
   terraform:
     name: terraform (fmt, validate, checkov)
     runs-on: ubuntu-latest
+    env:
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugins
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+      # Providers come from GitHub release downloads, which sometimes return 504s.
+      # Cached by lock file, a run downloads them only when a lock file changes;
+      # the lock files' checksums still verify whatever the cache holds.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .terraform-plugins
+          key: terraform-plugins-${{ hashFiles('infra/.terraform.lock.hcl', 'infra/grafana/.terraform.lock.hcl') }}
       - name: Format and validate
         working-directory: infra
         run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          init() {
+            for attempt in 1 2 3; do
+              terraform "$@" init -backend=false -input=false && return 0
+              echo "terraform init failed (attempt $attempt), retrying"
+              sleep $((attempt * 20))
+            done
+            return 1
+          }
           terraform fmt -check -recursive
-          terraform init -backend=false -input=false
+          init
           terraform validate
-          terraform -chdir=grafana init -backend=false -input=false
+          init -chdir=grafana
           terraform -chdir=grafana validate
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
