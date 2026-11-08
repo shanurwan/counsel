@@ -58,8 +58,9 @@ resource "google_cloud_run_v2_service" "mcp" {
     }
 
     containers {
-      # Bootstrap image; CI deploys the real one (ignored below).
-      image   = "us-docker.pkg.dev/cloudrun/container/hello"
+      # Starts on the image the runtime runs now (the placeholder image has no
+      # counsel-mcp); CI deploys each new one to both services (ignored below).
+      image   = google_cloud_run_v2_service.counsel.template[0].containers[0].image
       command = ["counsel-mcp"]
       args    = ["--http"]
 
