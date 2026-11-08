@@ -51,24 +51,40 @@ jobs:
   terraform:
     name: terraform (fmt, validate, checkov)
     runs-on: ubuntu-latest
-    env:
-      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugins
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
-      # Providers come from GitHub release downloads, which sometimes return 504s.
-      # Cached by lock file, a run downloads them only when a lock file changes;
-      # the lock files' checksums still verify whatever the cache holds.
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .terraform-plugins
-          key: terraform-plugins-${{ hashFiles('infra/.terraform.lock.hcl', 'infra/grafana/.terraform.lock.hcl') }}
+      # The Grafana provider is a GitHub release download, and Terraform's client
+      # times out on it from runners (8 Nov). curl fetches it into a local mirror
+      # with retries and a longer timeout; init still checks the zip against the
+      # hash pinned in infra/grafana/.terraform.lock.hcl.
+      - name: Mirror the Grafana provider
+        run: |
+          version=$(sed -n '/"registry.terraform.io\/grafana\/grafana"/,/}/s/^ *version *= *"\(.*\)"/\1/p' infra/grafana/.terraform.lock.hcl)
+          mirror="$RUNNER_TEMP/tf-mirror/registry.terraform.io/grafana/grafana"
+          mkdir -p "$mirror"
+          zip="terraform-provider-grafana_${version}_linux_amd64.zip"
+          curl -fsSL --retry 5 --retry-all-errors --connect-timeout 20 --max-time 300 \
+            -o "$mirror/$zip" \
+            "https://github.com/grafana/terraform-provider-grafana/releases/download/v${version}/${zip}"
+          cat > "$RUNNER_TEMP/terraform.rc" <<EOF
+          provider_installation {
+            filesystem_mirror {
+              path    = "$RUNNER_TEMP/tf-mirror"
+              include = ["registry.terraform.io/grafana/grafana"]
+            }
+            direct {
+              exclude = ["registry.terraform.io/grafana/grafana"]
+            }
+          }
+          EOF
       - name: Format and validate
         working-directory: infra
+        env:
+          TF_CLI_CONFIG_FILE: ${{ runner.temp }}/terraform.rc
         run: |
-          mkdir -p "$TF_PLUGIN_CACHE_DIR"
           init() {
             for attempt in 1 2 3; do
               terraform "$@" init -backend=false -input=false && return 0
