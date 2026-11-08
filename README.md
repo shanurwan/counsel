@@ -189,7 +189,10 @@ the audit log records the counts.
   the API does and what that forced: [docs/github.md](docs/github.md).
 - **MCP.** `counsel-mcp` exposes the journal, the privilege matrix and the handbook to
   any MCP client, through a login that can read the journal and ask a question and
-  nothing else: [docs/mcp.md](docs/mcp.md).
+  nothing else: [docs/mcp.md](docs/mcp.md). Hosted, people sign in with Supabase Auth,
+  and an assistant can propose a note that is posted only when the person approves
+  that exact text in their own browser:
+  [docs/per-action-consent.md](docs/per-action-consent.md).
 - **BigQuery.** Every finished run is loaded whole, by free batch jobs, exactly once:
   [docs/warehouse.md](docs/warehouse.md).
 

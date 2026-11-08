@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counsel · Approve a note</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* An assistant proposed a note with propose_note; it links here. Nothing is written until the
+   person approves this exact text, signed in as themselves (db/migrations/0014_proposals.sql). */
+:root {
+  --bg: #0a0a0b; --panel: #121214; --raised: #1a1a1d; --line: #27272b; --text: #f5f5f3; --muted: #a0a09b;
+  --red: #ff5340; --amber: #f2b84b; --green: #41d99a;
+  --sans: Geist, -apple-system, "Segoe UI", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--text); font: 16px/1.55 var(--sans); padding: 24px 16px; }
+main { width: min(480px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+.brand { font-weight: 600; margin: 0 0 22px; display: flex; align-items: center; gap: 9px; }
+h1 { font-size: 22px; line-height: 1.25; letter-spacing: -.02em; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0 0 14px; color: var(--muted); }
+label { display: block; font-size: 14px; color: var(--muted); margin: 14px 0 6px; }
+input { width: 100%; font: inherit; color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+input:focus, button:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+button { font: 500 15px var(--sans); border-radius: 8px; padding: 10px 16px; cursor: pointer; border: 1px solid var(--line); background: var(--raised); color: var(--text); }
+button.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+button:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 10px; margin-top: 20px; }
+.row button { flex: 1; }
+dl { margin: 16px 0 0; display: grid; gap: 14px; }
+dt { font: 500 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.note { white-space: pre-wrap; font: 15px/1.5 var(--sans); background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--amber); border-radius: 8px; padding: 12px 14px; margin: 0; color: var(--text); }
+.mono { font: 13px var(--mono); color: var(--muted); }
+.err { color: var(--red); font-size: 14px; margin-top: 12px; }
+.ok { color: var(--green); }
+.fine { font-size: 13px; color: var(--muted); margin: 20px 0 0; }
+.fine a, .link { color: var(--muted); background: none; border: 0; padding: 0; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <p class="brand"><svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1a1a1d"/><path d="M9 9l14 14M23 9L9 23" stroke="#ff5340" stroke-width="4" stroke-linecap="round"/></svg>Counsel</p>
+
+  <section id="loading"><p>Loading…</p></section>
+
+  <section id="problem" hidden>
+    <h1 id="problem-title">This link can't be used</h1>
+    <p id="problem-text"></p>
+  </section>
+
+  <form id="signin" hidden>
+    <h1 id="signin-title">Sign in to see what your assistant proposed</h1>
+    <p id="signin-text">Only you can approve it, signed in as yourself. Your assistant's connection can't.</p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <div class="row"><button class="primary" type="submit" id="signin-button">Sign in</button></div>
+    <p class="err" id="signin-error" hidden></p>
+  </form>
+
+  <section id="proposal" hidden>
+    <h1>Your assistant wants to post this note as you</h1>
+    <p>Signed in as <span id="user-email"></span>. <button class="link" type="button" id="signout">Not you?</button></p>
+    <dl>
+      <div><dt>On your task</dt><dd id="task"></dd></div>
+      <div><dt>Exactly this text</dt><dd><p class="note" id="body"></p></dd></div>
+      <div><dt>Proposed by</dt><dd class="mono" id="client"></dd></div>
+      <div><dt>Expires</dt><dd id="expires"></dd></div>
+    </dl>
+    <p class="fine">Allowing posts this text once, credited to you. A changed word needs a new approval.</p>
+    <div class="row">
+      <button type="button" id="deny">Deny</button>
+      <button class="primary" type="button" id="approve">Post it</button>
+    </div>
+    <p class="err" id="decide-error" hidden></p>
+  </section>
+
+  <p class="fine"><a href="./">What Counsel is</a></p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script>
+(() => {
+  // Filled in by CI, like consent.html. The publishable key is meant to be public.
+  const SUPABASE_URL = "__COUNSEL_SUPABASE_URL__";
+  const SUPABASE_KEY = "__COUNSEL_SUPABASE_PUBLISHABLE_KEY__";
+
+  const $ = id => document.getElementById(id);
+  const show = id => ["loading", "problem", "signin", "proposal"].forEach(s => { $(s).hidden = s !== id; });
+  const problem = (title, text) => { $("problem-title").textContent = title; $("problem-text").textContent = text; show("problem"); };
+  const proposalId = new URLSearchParams(location.search).get("proposal");
+
+  if (SUPABASE_URL.startsWith("__") || !window.supabase) return problem("This link can't be used", "Sign-in isn't configured for this site yet.");
+  if (!/^[0-9a-f-]{36}$/i.test(proposalId || "")) return problem("This link can't be used", "Open it from the link your assistant gave you.");
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let shown = null;   // the proposal exactly as the person sees it
+
+  async function sha256(text) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  function askToSignIn(again) {
+    $("signin-title").textContent = again ? "Confirm it's you" : "Sign in to see what your assistant proposed";
+    $("signin-text").textContent = again
+      ? "Posting as you needs a sign-in from the last ten minutes. Enter your password again."
+      : "Only you can approve it, signed in as yourself. Your assistant's connection can't.";
+    show("signin");
+  }
+
+  async function load() {
+    show("loading");
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return askToSignIn(false);
+    $("email").value = user.email;
+    const { data, error } = await sb.rpc("counsel_proposal", { p_id: proposalId });
+    if (error) return problem("This link can't be used", error.message);
+    if (!data || !data.length) return problem("Nothing to approve", "This proposal isn't for the account you're signed in with.");
+    shown = data[0];
+    if (shown.status !== "waiting") {
+      return problem(shown.status === "approved" ? "Already posted" : "Nothing to approve",
+                     shown.status === "expired" ? "This proposal expired. Ask your assistant to propose it again."
+                                                : `This proposal was ${shown.status}.`);
+    }
+    $("user-email").textContent = user.email;
+    $("task").textContent = shown.task_title;
+    $("body").textContent = shown.body;
+    $("client").textContent = "OAuth client " + shown.client_id;
+    $("expires").textContent = new Date(shown.expires_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    show("proposal");
+  }
+
+  $("signin").addEventListener("submit", async e => {
+    e.preventDefault();
+    $("signin-button").disabled = true; $("signin-error").hidden = true;
+    const { error } = await sb.auth.signInWithPassword({ email: $("email").value, password: $("password").value });
+    $("signin-button").disabled = false; $("password").value = "";
+    if (error) { $("signin-error").textContent = error.message; $("signin-error").hidden = false; return; }
+    load();
+  });
+
+  async function decide(approve) {
+    $("approve").disabled = $("deny").disabled = true; $("decide-error").hidden = true;
+    const args = { p_id: proposalId, p_approve: approve };
+    // The database posts the note only if this is the hash of the text it holds.
+    if (approve) args.p_body_sha256 = await sha256(shown.body);
+    const { data, error } = await sb.rpc("counsel_decide", args);
+    $("approve").disabled = $("deny").disabled = false;
+    if (error && error.code === "CN012") return askToSignIn(true);
+    if (error) { $("decide-error").textContent = error.message; $("decide-error").hidden = false; return; }
+    problem(data === "approved" ? "Posted" : "Denied",
+            data === "approved" ? "The note is on your task, credited to you. You can close this tab."
+                                : "Nothing was posted. You can close this tab.");
+    $("problem-title").classList.toggle("ok", data === "approved");
+  }
+  $("approve").addEventListener("click", () => decide(true));
+  $("deny").addEventListener("click", () => decide(false));
+  $("signout").addEventListener("click", async () => { await sb.auth.signOut(); askToSignIn(false); });
+
+  load();
+})();
+</script>
+</body>
+</html>

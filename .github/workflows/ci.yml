@@ -86,9 +86,11 @@ jobs:
         run: |
           mkdir _site
           cp site/index.html site/replay.html site/og.png evals/replay.json _site/
-          sed -e "s|__COUNSEL_SUPABASE_URL__|${SUPABASE_URL:-__COUNSEL_SUPABASE_URL__}|" \
-              -e "s|__COUNSEL_SUPABASE_PUBLISHABLE_KEY__|${SUPABASE_PUBLISHABLE_KEY:-__COUNSEL_SUPABASE_PUBLISHABLE_KEY__}|" \
-              site/consent.html > _site/consent.html
+          for page in consent approve; do
+            sed -e "s|__COUNSEL_SUPABASE_URL__|${SUPABASE_URL:-__COUNSEL_SUPABASE_URL__}|" \
+                -e "s|__COUNSEL_SUPABASE_PUBLISHABLE_KEY__|${SUPABASE_PUBLISHABLE_KEY:-__COUNSEL_SUPABASE_PUBLISHABLE_KEY__}|" \
+                "site/$page.html" > "_site/$page.html"
+          done
           cp bench/results.json _site/bench.json
           cp cost/results.json _site/cost.json
           # One file, so a new migration reaches the page's Postgres by itself.

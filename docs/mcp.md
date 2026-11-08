@@ -18,6 +18,8 @@ people sign in with this project's Supabase Auth and also see their own work
 | `handbook_answer` | The latest answer to that exact question | no |
 | `whoami` | Hosted only: your sign-in and the person it is linked to | no |
 | `my_work` | Hosted only: your own unfinished tasks | no |
+| `propose_note` | Hosted only: proposes a note on your own task; posted only if you approve it in the browser | a proposal |
+| `proposal_status` | Hosted only: whether you approved, denied or let it expire | no |
 
 ## The tool list is not the policy
 
@@ -98,6 +100,12 @@ a person with `counsel link-login <email> <handle>`; nobody links themselves. Th
 server passes the token's user id to `counsel.work_for_login`, and `counsel_mcp`
 still holds no grant on `work.tasks` or `counsel.logins`. `counsel audit` fails if
 that login can run any other SECURITY DEFINER function.
+
+`propose_note` is the one write, and it writes nothing itself. The person approves
+the exact text in [site/approve.html](../site/approve.html), signed in as themselves,
+and the database refuses an approval made with the assistant's own token, an old
+sign-in, someone else's sign-in or changed text:
+[per-action-consent.md](per-action-consent.md).
 
 ### The gap: tokens do not say which server they are for
 

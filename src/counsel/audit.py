@@ -45,7 +45,9 @@ MCP_READS = ("counsel.runs", "counsel.steps", "counsel.model_calls", "counsel.au
              "counsel.answers", "counsel.outbound_messages", "counsel.run_costs", "counsel.value_ledger",
              "counsel.agent_settings")
 # A signed-in person's own identity and work, for a user id from a verified token (0013_logins.sql).
-MCP_CALLS = ("counsel.person_for_login(uuid)", "counsel.work_for_login(uuid)")
+MCP_CALLS = ("counsel.person_for_login(uuid)", "counsel.work_for_login(uuid)",
+             # It may propose; only the person, signed in at a browser, approves (0014_proposals.sql).
+             "counsel.propose_note(uuid,text,text,text)", "counsel.proposal_for_login(uuid,uuid)")
 
 PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
           "reader": READER_ROLE, "reader_allowed": [f"SELECT {t}" for t in READER_ALLOWED],
@@ -77,7 +79,7 @@ LOGIN_CHECK = """
         where exists (select from pg_roles where rolname = %({role})s)
           and p.prosecdef
           and p.prorettype not in ('trigger'::regtype, 'event_trigger'::regtype)
-          and n.nspname in ('counsel', 'work', 'support', 'kb')
+          and n.nspname in ('counsel', 'work', 'support', 'kb', 'public')
           and has_function_privilege(%({role})s, p.oid, 'EXECUTE')
           and not ('EXECUTE ' || p.oid::regprocedure::text = any(%({allowed})s))
         union all

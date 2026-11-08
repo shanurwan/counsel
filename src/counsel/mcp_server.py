@@ -15,6 +15,11 @@ every request carries a token checked by mcp_auth.SupabaseTokenVerifier, and two
 tools answer for the signed-in person: who they are, and their own open work. Those
 go through counsel.person_for_login and counsel.work_for_login, so the login still
 holds no grant on work.tasks (db/migrations/0013_logins.sql).
+
+Hosted, it can also propose a note on the person's own task. A proposal writes
+nothing: the person approves that exact text in a browser, signed in as themselves,
+and the token this server holds cannot approve it (db/migrations/0014_proposals.sql,
+docs/per-action-consent.md).
 """
 
 from __future__ import annotations
@@ -41,6 +46,8 @@ MAX_ROWS = 50
 # A question costs a model call, and the client is often an agent in a loop.
 MAX_QUESTIONS_PER_HOUR = 20
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False)
+# Where people sign in and approve proposals (site/consent.html, site/approve.html).
+SITE_URL = os.environ.get("COUNSEL_SITE_URL", "https://shanurwan.github.io/counsel").rstrip("/")
 
 
 class TooManyQuestions(Exception):
@@ -196,6 +203,33 @@ def build(dsn: str, agents_dir: Path | None = None, *, auth: AuthSettings | None
         subject, _ = _signed_in()
         with connect() as conn:
             return _json(_rows(conn.execute("select * from counsel.work_for_login(%s)", (subject,))))
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False,
+                                             openWorldHint=False))
+    def propose_note(task_title: str, text: str) -> str:
+        """Propose a progress note on one of your own open tasks (exact title, as my_work shows it).
+        Nothing is written yet: give the person the approve_url. The note is posted only when they
+        open it, sign in themselves and approve this exact text within 15 minutes."""
+        subject, client_id = _signed_in()
+        try:
+            with connect() as conn:
+                row = _rows(conn.execute("select * from counsel.propose_note(%s, %s, %s, %s)",
+                                         (subject, client_id, task_title, text)))[0]
+        except psycopg.Error as e:
+            if e.sqlstate != "CN010":
+                raise
+            return _json({"error": e.diag.message_primary})
+        return _json({**row, "status": "waiting for the person",
+                      "approve_url": f"{SITE_URL}/approve.html?proposal={row['proposal_id']}",
+                      "note": "Not posted. Show the person this link; only they can approve it."})
+
+    @server.tool(annotations=READ_ONLY)
+    def proposal_status(proposal_id: str) -> str:
+        """Whether a note you proposed was approved, denied, is still waiting, or expired."""
+        subject, _ = _signed_in()
+        with connect() as conn:
+            rows = _rows(conn.execute("select * from counsel.proposal_for_login(%s, %s)", (subject, proposal_id)))
+        return _json(rows[0] if rows else {"error": f"no proposal {proposal_id} for you"})
 
     return server
 
