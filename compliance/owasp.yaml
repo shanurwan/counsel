@@ -29,12 +29,14 @@ risks:
       Contained, not prevented. An injected ticket, issue or update can steer what an
       agent writes, but not past its Postgres role: no commitment, secret, customer
       thread or audit edit is reachable. Drafts that offer an action are flagged for the
-      reviewer, and a person publishes every draft. The incident bench replays real
-      hijacks with a model scripted to obey the attacker.
+      reviewer, and a person publishes every draft. The bench replays real hijacks and
+      twenty injected goals with a model scripted to obey the attacker: the broad
+      control bot is harmed by every one, Counsel by none.
     evidence:
       - tests/test_support.py::test_no_agent_can_read_or_touch_secrets
       - tests/test_support.py::test_a_draft_offering_an_action_is_flagged_for_the_reviewer
       - tests/test_cost.py::test_the_simulated_model_obeys_an_injected_ticket
+      - tests/test_bench.py::test_the_injection_suite_has_twenty_goals_each_written_down
       - bench/expected.json
     remains: >
       No classifier on incoming text. Injected text can still shape an allowed draft or
@@ -193,6 +195,7 @@ risks:
     how: Same as ASI01. Containment by role, not detection.
     evidence:
       - tests/test_support.py::test_no_agent_can_post_to_the_customer_thread
+      - tests/test_bench.py::test_the_injection_suite_has_twenty_goals_each_written_down
       - tests/test_cost.py::test_the_simulated_model_obeys_an_injected_ticket
     remains: No classifier; injected text can shape an allowed draft.
 

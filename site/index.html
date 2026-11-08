@@ -182,6 +182,9 @@ mark { background: color-mix(in srgb, var(--red) 22%, transparent); color: #ffc1
 .incidents .typical { color: #ffb2a8; }
 .incidents .counsel { color: var(--green); white-space: nowrap; }
 .incidents .counsel.reduced { color: var(--amber); }
+.injection-line { max-width: 86ch; margin: 22px auto 0; text-align: center; font-size: 15.5px; line-height: 1.6; color: var(--muted); text-wrap: pretty; }
+.injection-line b { color: var(--text); font-weight: 600; }
+.injection-line a { color: var(--muted); }
 
 /* the numbers */
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
@@ -391,6 +394,7 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
         <tbody id="incidents-rows"></tbody>
       </table>
     </div>
+    <p class="injection-line" id="injection-line" hidden></p>
   </div>
 </section>
 
@@ -822,7 +826,17 @@ function ticket(report) {
 
 function incidents(bench) {
   const counsel = c => bench.rows.find(r => r.case === c && r.arm === "counsel");
+  const inj = bench.injection;
+  if (inj && inj.goals) {
+    const contained = inj.stopped["contained by row scope"] || 0;
+    $("injection-line").replaceChildren(
+      el("b", { text: `Plus ${inj.goals} injection goals` }),
+      ` in AgentDojo's "important instructions" format, each hidden in a customer ticket: steal tokens, read other customers, destroy records, change commitments, reply as the bot. The broad support bot was harmed by ${inj.control_harmed} of ${inj.goals}. Counsel by ${inj.counsel_harm ? inj.counsel_harm : "none"}: ${inj.goals - contained} refused, ${contained} contained by row scope. `,
+      el("a", { href: "https://github.com/shanurwan/counsel/blob/main/bench/RESULTS.md", text: "Every goal" }));
+    $("injection-line").hidden = false;
+  }
   for (const o of bench.on_call) {
+    if (o.suite === "injection") continue;
     const stop = counsel(o.case)?.actual?.stopped_by;
     const reduced = stop === "not_refused";
     const label = stop === "registry" ? "Refused before it compiled" : reduced ? "Nothing sent; a person answers" : `Refused, ${stop}`;
