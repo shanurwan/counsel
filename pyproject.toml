@@ -8,6 +8,8 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "pyyaml>=6.0",
   "croniter>=6.0",
+  # Signs the triage app's requests (githubapp.py).
+  "pyjwt[crypto]>=2.10,<3",
 ]
 
 [project.optional-dependencies]

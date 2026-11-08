@@ -12,7 +12,7 @@ read on 2026-11-03. They are per billing account per month.
 |---|---|---|---|
 | Cloud Run | 2M requests, 180k vCPU-s, 360k GiB-s, 1 GB egress from North America | one tick every 30 min plus events | worst case below; `us-central1` so egress to Supabase and NVIDIA is covered |
 | Cloud Scheduler | 3 jobs | 2 | one tick per runtime pool; agent schedules live in `agents/*.yaml` |
-| Secret Manager | 6 active versions | 5 | `database-url`, `support-database-url`, `mcp-database-url`, `nvidia-api-key`, `migrate-database-url` |
+| Secret Manager | 6 active versions | 6 | `database-url`, `support-database-url`, `mcp-database-url`, `nvidia-api-key`, `migrate-database-url`, `github-app-key`; a rotation must destroy the old version, or the seventh is billed |
 | BigQuery | 10 GiB storage, 1 TiB queries | MBs | batch load jobs only, which are free; streaming inserts are billed and never used; partitions expire after 90 days |
 | Artifact Registry | 0.5 GB | ~0.2 GB | cleanup keeps the latest 2 images per repository |
 | Cloud Storage | 5 GB in US regions | KBs | Terraform state, guard source (deleted after 7 days) |

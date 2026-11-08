@@ -221,13 +221,16 @@ def sync(conn: psycopg.Connection, client: GitHub, repo: str, *, max_new: int = 
             "not_modified": not issues and etag is not None and new_etag == etag}
 
 
-def sync_all(conn: psycopg.Connection, agents: dict, now: datetime, client: GitHub | None = None) -> list[dict]:
-    """Every repository an agent watches. A GitHub outage never costs a tick its agents."""
+def sync_all(conn: psycopg.Connection, agents: dict, now: datetime, client: GitHub | None = None,
+             installed: dict[str, GitHub] | None = None) -> list[dict]:
+    """Every repository an agent watches, and every repository that installed the triage
+    app (read with that installation's own token). A GitHub outage never costs a tick its agents."""
     client = client or GitHub(token=os.environ.get("COUNSEL_GITHUB_READ_TOKEN"))
+    installed = installed or {}
     results = []
-    for repo in sorted({r for a in agents.values() for r in a.watches}):
+    for repo in sorted({r for a in agents.values() for r in a.watches} | set(installed)):
         try:
-            results.append(sync(conn, client, repo, now=now))
+            results.append(sync(conn, installed.get(repo, client), repo, now=now))
         except RateLimited as e:
             log("WARNING", "github rate limited; next tick retries", repo=repo, retry_after=e.retry_after)
             results.append({"repo": repo, "rate_limited": True})

@@ -68,6 +68,26 @@ resource "google_cloud_run_v2_service" "counsel" {
           }
         }
       }
+      # The triage app (infra/app.tf), only once its id is set and its key stored.
+      dynamic "env" {
+        for_each = var.github_app_id == "" ? [] : [var.github_app_id]
+        content {
+          name  = "GITHUB_APP_ID"
+          value = env.value
+        }
+      }
+      dynamic "env" {
+        for_each = var.github_app_id == "" ? [] : [1]
+        content {
+          name = "GITHUB_APP_PRIVATE_KEY"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.github_app_key.secret_id
+              version = "latest"
+            }
+          }
+        }
+      }
     }
   }
 
@@ -81,7 +101,8 @@ resource "google_cloud_run_v2_service" "counsel" {
     ]
   }
 
-  depends_on = [google_secret_manager_secret_iam_member.runtime]
+  depends_on = [google_secret_manager_secret_iam_member.runtime,
+  google_secret_manager_secret_iam_member.runtime_github_app_key]
 }
 
 # --- the clock -------------------------------------------------------------------

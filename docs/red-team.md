@@ -104,6 +104,7 @@ What each component can do if compromised now:
 | The model | Ask for the tool calls its agent offers | The agent's grants, row scope, the commitment trigger |
 | The core runtime login | Act as any of the seven core agents together | Cannot become the drafter or read a ticket. No agent can write a commitment, read integration tokens or edit the audit log; `counsel audit` checks all of it on every push |
 | The support runtime login | Act as the drafter, and set its ticket scope to any ticket | Cannot read employees, tasks or updates, post to a customer, or read integration tokens |
+| The triage app's key (core runtime) | Comment, label or close issues on the public repositories that installed the app, as the app | Only installed repositories; the code only comments on its own notes issue; an uninstall revokes it ([triage-app.md](triage-app.md)) |
 | The MCP login | Read the journal, ask a question, propose a note | Cannot approve a note ([per-action-consent.md](per-action-consent.md)) |
 | The migration login | Everything | It is the owner. It lives in Secret Manager, read by CI's deploy job and by the owner |
 

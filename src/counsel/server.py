@@ -16,7 +16,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import psycopg
 
-from . import github, warehouse
+from . import github, githubapp, warehouse
 from .cli import build_worker
 from .log import log
 from .registry import CORE_POOL
@@ -53,8 +53,15 @@ class Handler(BaseHTTPRequestHandler):
                 # GitHub sync and the warehouse export belong to the core pool's service;
                 # another pool's service only runs its own agents.
                 core = os.environ.get("COUNSEL_RUNTIME_POOL", CORE_POOL) == CORE_POOL
-                synced = github.sync_all(conn, worker.agents, datetime.now(timezone.utc)) if core else None
-                summary = {**worker.tick(), "synced": synced}
+                now = datetime.now(timezone.utc)
+                app = githubapp.App.from_env() if core else None
+                installs = githubapp.tick(conn, app, now) if core else None
+                readers = githubapp.readers(conn, app) if app else {}
+                synced = github.sync_all(conn, worker.agents, now, installed=readers) if core else None
+                summary = {**worker.tick(), "synced": synced, "installs": installs}
+                if app:
+                    # After the agents ran, so this tick's drafts go out on this tick.
+                    summary["delivered"] = len(githubapp.deliver(conn, app, datetime.now(timezone.utc)))
                 if core and warehouse.on_cloud_run() and time.monotonic() - started < WAREHOUSE_CUTOFF_S:
                     summary["warehouse"] = _export(conn)
             self._send(200, summary)

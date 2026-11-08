@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Counsel Triage</title>
+<meta name="description" content="A free GitHub App that writes a triage note for each new issue, for the maintainers, and never touches the issue.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+:root { --bg:#07080a; --panel:#111215; --line:rgba(255,255,255,.09); --text:#f5f5f3; --muted:#a2a3a8; --faint:#6c6d73;
+  --green:#41d99a; --amber:#f2b84b; --red:#ff5340; --sans:Geist,-apple-system,"Segoe UI",system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,Consolas,monospace; color-scheme:dark; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:17px/1.6 var(--sans); }
+main { max-width:760px; margin:0 auto; padding:64px 20px 80px; }
+.brand { display:flex; align-items:center; gap:10px; font-weight:600; text-decoration:none; color:inherit; margin-bottom:40px; }
+h1 { font-size:clamp(34px,6vw,52px); line-height:1.04; letter-spacing:-.04em; margin:0 0 16px; text-wrap:balance; }
+h2 { font-size:22px; letter-spacing:-.02em; margin:44px 0 10px; }
+p, li { color:var(--muted); }
+strong { color:var(--text); font-weight:600; }
+code { font:.9em var(--mono); color:var(--text); }
+a { color:var(--text); }
+.lead { font-size:19px; color:var(--text); }
+.cta { display:inline-flex; align-items:center; gap:10px; margin:28px 0 8px; padding:13px 22px; border-radius:10px; background:var(--text); color:var(--bg); font-weight:600; text-decoration:none; }
+.fine { font-size:14px; color:var(--faint); }
+.note { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:22px 24px; margin-top:22px; font-size:15.5px; }
+.note b { color:var(--text); }
+.note .meta { font:13px var(--mono); color:var(--faint); margin-top:12px; }
+ul { padding-left:20px; }
+li { margin:6px 0; }
+.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.grid div { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+.grid h3 { margin:0 0 6px; font-size:15px; }
+.grid .yes h3 { color:var(--green); } .grid .no h3 { color:var(--red); }
+.grid ul { margin:0; padding-left:18px; font-size:15px; }
+@media (max-width:620px) { .grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <a class="brand" href="./"><svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1a1a1d"/><path d="M9 9l14 14M23 9L9 23" stroke="#ff5340" stroke-width="4" stroke-linecap="round"/></svg>Counsel</a>
+
+  <h1>A triage note for every new issue. Never on the issue.</h1>
+  <p class="lead">Counsel Triage is a free GitHub App. When someone opens an issue on your public repository, it writes a short note for you: what is being reported, which area it touches, what information is missing, and a possible duplicate it has checked exists. The note goes to one issue in your repository, <strong>Counsel triage notes</strong>. The reporter never sees a bot reply.</p>
+  <a class="cta" href="https://github.com/apps/counsel-triage/installations/new">Install on a repository</a>
+  <p class="fine">Free. One public repository is enough. Uninstall any time and it stops on the next run.</p>
+
+  <div class="note">
+    <b>#142 Login fails after upgrading to 2.4</b><br><br>
+    Reports that sign-in returns a 401 after upgrading the client to 2.4. Area: authentication, client library. Missing: the server version and whether the session was created before the upgrade. Possible duplicate: #131, the same 401 after an upgrade.
+    <div class="meta">An example note · 👍 / 👎 if it helped</div>
+  </div>
+
+  <h2>What it does, and what it never does</h2>
+  <div class="grid">
+    <div class="yes"><h3>Does</h3><ul>
+      <li>Reads new issues on repositories you installed it on</li>
+      <li>Writes one note per new issue on the notes issue</li>
+      <li>Names a duplicate only if that issue exists; code checks the number</li>
+    </ul></div>
+    <div class="no"><h3>Never</h3><ul>
+      <li>Replies on the reporter's issue</li>
+      <li>Labels, assigns, closes or edits anything</li>
+      <li>Triages issues opened before you installed it</li>
+    </ul></div>
+  </div>
+  <p>GitHub's <code>Issues: write</code> permission, which it needs to post a note, would also allow labelling or closing. Counsel's code never does either; it is open source, and the part that talks to your repository is <a href="https://github.com/shanurwan/counsel/blob/main/src/counsel/githubapp.py">one file</a>.</p>
+
+  <h2>What happens to your issues' text</h2>
+  <ul>
+    <li><strong>Public repositories only.</strong> If you install it on a private one, that repository is skipped.</li>
+    <li>The issue's title and body are stored in Counsel's database (Supabase, EU) and sent to a hosted model (NVIDIA's API, Nemotron) to write the note.</li>
+    <li>Ask, and everything stored from your repository is deleted: open an issue on <a href="https://github.com/shanurwan/counsel">shanurwan/counsel</a>.</li>
+  </ul>
+
+  <h2>Who runs it</h2>
+  <p>One developer, Wan Nur Shafiqah, as part of <a href="./">Counsel</a>, an agent platform where agents can draft but never decide. It runs on free tiers, so it may lag behind a busy repository. Your 👍 and 👎 on the notes are how it gets judged: the results, misses included, are published in <a href="https://github.com/shanurwan/counsel/blob/main/docs/field-week.md">the field report</a>.</p>
+
+  <h2>Stop it</h2>
+  <p>Your repository's <strong>Settings → GitHub Apps → Counsel Triage → Uninstall</strong>, or your account's <strong>Settings → Applications</strong>. Counsel stops reading and posting on the next run, within 30 minutes.</p>
+</main>
+</body>
+</html>
