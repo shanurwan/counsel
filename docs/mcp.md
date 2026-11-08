@@ -105,7 +105,9 @@ that login can run any other SECURITY DEFINER function.
 the exact text in [site/approve.html](../site/approve.html), signed in as themselves,
 and the database refuses an approval made with the assistant's own token, an old
 sign-in, someone else's sign-in or changed text:
-[per-action-consent.md](per-action-consent.md).
+[per-action-consent.md](per-action-consent.md). Clients that support MCP's URL-mode
+elicitation are sent to the page by the protocol and retry the call afterwards;
+others get the link in the result.
 
 ### The gap: tokens do not say which server they are for
 

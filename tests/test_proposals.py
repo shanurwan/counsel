@@ -195,6 +195,96 @@ def test_the_audit_fails_if_the_mcp_login_could_approve(db, agents):
     assert found and "EXECUTE counsel_decide(uuid,boolean,text)" in found[0].detail
 
 
+# --- URL-mode elicitation: the client sends the person to the page, then retries -----------------
+
+
+@pytest.fixture
+def hosted(database_url, monkeypatch):
+    """The hosted server on the counsel_mcp login, with Aiko signed in through a Claude-like client."""
+    from mcp.server.auth.settings import AuthSettings
+
+    from counsel import mcp_server
+    from test_mcp_hosted import ISSUER, RESOURCE, verifier
+
+    with psycopg.connect(database_url, autocommit=True) as admin:
+        admin.execute("alter role counsel_mcp password 'counsel-test-only'")
+        admin.execute("insert into counsel.logins (auth_user_id, person_id) values (%s, %s)", (AIKO_LOGIN, AIKO))
+    monkeypatch.setattr(mcp_server, "_signed_in", lambda: (AIKO_LOGIN, CLIENT))
+    url = psycopg.conninfo.make_conninfo(database_url, user="counsel_mcp", password="counsel-test-only")
+    yield mcp_server.build(url, auth=AuthSettings(issuer_url=ISSUER, resource_server_url=RESOURCE,
+                                                  validate_token_resource=False), token_verifier=verifier())
+    with psycopg.connect(database_url, autocommit=True) as admin:
+        ids = [r[0] for r in admin.execute("select update_id from counsel.proposals where update_id is not null")]
+        admin.execute("delete from counsel.proposals")
+        if ids:
+            admin.execute("delete from work.task_updates where id = any(%s)", (ids,))
+        admin.execute("delete from counsel.logins where auth_user_id = %s", (AIKO_LOGIN,))
+
+
+def call_propose(server, *, elicits: bool):
+    """Returns the tool's JSON result, or the MCP error it answered with."""
+    import anyio
+    from mcp.client import Client
+    from mcp.shared.exceptions import MCPError
+
+    async def accept(context, params):  # declares form and url elicitation support
+        raise AssertionError("the server should not send a standalone elicitation request")
+
+    async def go():
+        kwargs = {"elicitation_callback": accept} if elicits else {}
+        async with Client(server, **kwargs) as client:
+            try:
+                result = await client.call_tool("propose_note", {"task_title": TITLE, "text": TEXT})
+            except MCPError as e:
+                return e
+            return json.loads(result.content[0].text)
+
+    return anyio.run(go)
+
+
+def approve_in_browser(database_url, proposal_id):
+    with psycopg.connect(database_url, autocommit=True) as conn:
+        assert decide(conn, proposal_id, session()) == "approved"
+
+
+def test_a_client_that_supports_url_elicitation_is_sent_to_the_approval_page(hosted, database_url):
+    from mcp_types import URL_ELICITATION_REQUIRED
+
+    asked = call_propose(hosted, elicits=True)
+    assert asked.code == URL_ELICITATION_REQUIRED
+    [elicitation] = asked.data["elicitations"]
+    assert elicitation["mode"] == "url" and "/approve.html?proposal=" in elicitation["url"]
+    proposal = elicitation["url"].rsplit("=", 1)[1]
+
+    # Retried before the person answered: the same proposal, the same link, nothing new.
+    again = call_propose(hosted, elicits=True)
+    assert again.data["elicitations"][0]["url"] == elicitation["url"]
+
+    approve_in_browser(database_url, proposal)
+    done = call_propose(hosted, elicits=True)
+    assert done["status"] == "approved"
+    # And retried once more: still one proposal and one note, never a second post.
+    assert call_propose(hosted, elicits=True)["status"] == "approved"
+    with psycopg.connect(database_url) as conn:
+        assert conn.execute("select count(*) from counsel.proposals").fetchone() == (1,)
+        assert conn.execute("select count(*) from work.task_updates where body = %s", (TEXT,)).fetchone() == (1,)
+
+
+def test_a_client_without_url_elicitation_gets_the_link(hosted):
+    result = call_propose(hosted, elicits=False)
+    assert result["status"] == "waiting for the person" and "/approve.html?proposal=" in result["approve_url"]
+
+
+def test_the_approval_link_is_not_signed_in(hosted, database_url):
+    """The URL carries only the proposal id. Opening it as anyone but Aiko shows nothing."""
+    proposal = call_propose(hosted, elicits=False)["proposal_id"]
+    with psycopg.connect(database_url) as conn:
+        conn.execute("insert into counsel.logins (auth_user_id, person_id) values (%s, %s)", (BRUNO_LOGIN, BRUNO))
+        with browser(conn, session(login=BRUNO_LOGIN)):
+            assert conn.execute("select * from public.counsel_proposal(%s)", (proposal,)).fetchall() == []
+        conn.rollback()
+
+
 def test_hosted_mode_offers_the_proposal_tools():
     import anyio
     from mcp.client import Client

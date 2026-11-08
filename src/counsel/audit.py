@@ -47,7 +47,9 @@ MCP_READS = ("counsel.runs", "counsel.steps", "counsel.model_calls", "counsel.au
 # A signed-in person's own identity and work, for a user id from a verified token (0013_logins.sql).
 MCP_CALLS = ("counsel.person_for_login(uuid)", "counsel.work_for_login(uuid)",
              # It may propose; only the person, signed in at a browser, approves (0014_proposals.sql).
-             "counsel.propose_note(uuid,text,text,text)", "counsel.proposal_for_login(uuid,uuid)")
+             "counsel.propose_note(uuid,text,text,text)", "counsel.proposal_for_login(uuid,uuid)",
+             # A retried call finds its proposal instead of making another (0016_proposal_retry.sql).
+             "counsel.proposal_for_text(uuid,text,text)")
 
 PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
           # Further pools' logins: counsel_runtime_<pool> (registry.login_for).

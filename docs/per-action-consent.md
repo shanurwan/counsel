@@ -48,11 +48,19 @@ assistant.
 only write, and it writes nothing:
 
 1. **The assistant proposes.** `counsel.propose_note` stores the exact text for one
-   of the signed-in person's own open tasks and returns a link. At most five wait at
-   once, so a model in a loop cannot flood anyone.
-2. **The person opens the link** ([site/approve.html](../site/approve.html)), signs in,
+   of the signed-in person's own open tasks. At most five wait at once, so a model in
+   a loop cannot flood anyone.
+2. **The client sends the person to the page.** A client that supports MCP's URL-mode
+   elicitation (2025-11-25) gets the spec's `URLElicitationRequired` error carrying the
+   page's address. It opens the page and retries the call when the person is done.
+   Any other client gets the link in the result to show the person. The link is never
+   signed in: it carries only the proposal's id, and the page makes the person sign in.
+   A retry finds the same proposal instead of making another
+   ([0016_proposal_retry.sql](../db/migrations/0016_proposal_retry.sql)), and once the
+   person has approved, it reports the note as posted and posts nothing more.
+3. **The person opens the page** ([site/approve.html](../site/approve.html)), signs in,
    and sees the task and the exact text.
-3. **Postgres decides** ([0014_proposals.sql](../db/migrations/0014_proposals.sql)).
+4. **Postgres decides** ([0014_proposals.sql](../db/migrations/0014_proposals.sql)).
    `public.counsel_decide` runs only as PostgREST's `authenticated` role, and refuses:
    - **a token issued to an OAuth client.** Supabase Auth puts `client_id` in the
      tokens it issues to OAuth clients, and not in a person's own session. That one
@@ -65,7 +73,7 @@ only write, and it writes nothing:
    - **text other than what the page showed.** The page sends the SHA-256 of what it
      rendered, and the database compares it with what it holds;
    - **a proposal already decided, or older than 15 minutes.**
-4. **Approving is the write.** In one transaction it records a `work.consents` row
+5. **Approving is the write.** In one transaction it records a `work.consents` row
    for that hash, inserts the note credited to the person (`on_behalf_of`) and
    attributed to the client that proposed it, and closes the proposal. There is no
    second step for the assistant to replay.

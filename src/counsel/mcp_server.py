@@ -35,9 +35,10 @@ import psycopg
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import TokenVerifier
 from mcp.server.auth.settings import AuthSettings
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp.types import ToolAnnotations
+from mcp.shared.exceptions import UrlElicitationRequiredError
+from mcp.types import ElicitRequestURLParams, ToolAnnotations
 
 from . import audit, registry
 
@@ -76,6 +77,15 @@ def _signed_in() -> tuple[str, str]:
     print(json.dumps({"event": "mcp_call", "sub": token.subject, "client_id": token.client_id,
                       "audience_bound": token.resource is not None}), file=sys.stderr, flush=True)
     return token.subject, token.client_id
+
+
+def _supports_url_elicitation(ctx: Context) -> bool:
+    """Whether this client declared URL-mode elicitation (MCP 2025-11-25)."""
+    try:
+        caps = ctx.client_capabilities
+    except (LookupError, AttributeError):
+        return False
+    return bool(caps and caps.elicitation and caps.elicitation.url is not None)
 
 
 def build(dsn: str, agents_dir: Path | None = None, *, auth: AuthSettings | None = None,
@@ -206,21 +216,38 @@ def build(dsn: str, agents_dir: Path | None = None, *, auth: AuthSettings | None
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False,
                                              openWorldHint=False))
-    def propose_note(task_title: str, text: str) -> str:
+    def propose_note(task_title: str, text: str, ctx: Context) -> str:
         """Propose a progress note on one of your own open tasks (exact title, as my_work shows it).
-        Nothing is written yet: give the person the approve_url. The note is posted only when they
-        open it, sign in themselves and approve this exact text within 15 minutes."""
+        Nothing is written yet. The note is posted only when the person opens the approval page,
+        signs in themselves and approves this exact text within 15 minutes. Calling again with the
+        same task and text returns the same proposal, and says once it was approved or denied."""
         subject, client_id = _signed_in()
         try:
             with connect() as conn:
-                row = _rows(conn.execute("select * from counsel.propose_note(%s, %s, %s, %s)",
-                                         (subject, client_id, task_title, text)))[0]
+                # A retry (the client does this after a URL elicitation) finds its proposal.
+                found = _rows(conn.execute("select * from counsel.proposal_for_text(%s, %s, %s)",
+                                           (subject, task_title, text)))
+                if found and found[0]["status"] in ("approved", "denied"):
+                    return _json({**found[0], "note": "Posted, credited to the person."
+                                  if found[0]["status"] == "approved" else "The person denied it. Nothing was posted."})
+                if found and found[0]["status"] == "waiting":
+                    row = {**found[0], "task_title": task_title}
+                else:
+                    row = _rows(conn.execute("select * from counsel.propose_note(%s, %s, %s, %s)",
+                                             (subject, client_id, task_title, text)))[0]
         except psycopg.Error as e:
             if e.sqlstate != "CN010":
                 raise
             return _json({"error": e.diag.message_primary})
-        return _json({**row, "status": "waiting for the person",
-                      "approve_url": f"{SITE_URL}/approve.html?proposal={row['proposal_id']}",
+        url = f"{SITE_URL}/approve.html?proposal={row['proposal_id']}"
+        if _supports_url_elicitation(ctx):
+            # MCP URL-mode elicitation: the client sends the person to the page and retries
+            # this call when they are done. The link is not signed in: the page makes the
+            # person sign in, and the database checks it is the person this proposal is for.
+            raise UrlElicitationRequiredError([ElicitRequestURLParams(
+                message=f"Approve this note on \"{row['task_title']}\" in your browser. Nothing is posted until you do.",
+                url=url, elicitation_id=str(row["proposal_id"]))])
+        return _json({**row, "status": "waiting for the person", "approve_url": url,
                       "note": "Not posted. Show the person this link; only they can approve it."})
 
     @server.tool(annotations=READ_ONLY)
