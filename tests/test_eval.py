@@ -41,6 +41,17 @@ def test_kappa(a, b, expected):
     assert evals.kappa(a, b) == pytest.approx(expected)
 
 
+def test_kappa_interval_is_wide_on_few_labels_and_narrows_with_more():
+    labels = [True] * 9 + [False] * 9
+    judged = [False] + labels[1:]          # 17 of 18 agree
+    low, high = evals.kappa_interval(labels, judged)
+    assert low < evals.kappa(labels, judged) <= high
+    assert high - low > 0.25, "18 labels cannot pin kappa down tightly"
+    many_low, many_high = evals.kappa_interval(labels * 6, judged * 6)
+    assert many_high - many_low < high - low
+    assert evals.kappa_interval(labels, judged) == (low, high), "seeded, so CI reports the same interval"
+
+
 # --- the gate ---------------------------------------------------------------------------
 
 

@@ -293,25 +293,42 @@ def _ns(t: datetime) -> str:
     return str(int(t.timestamp() * 1_000_000_000))
 
 
-def trace(conn: psycopg.Connection, run_id: str) -> dict:
-    """One run as OTLP/JSON: a root span for the run, a child per step.
+SPAN_INTERNAL, SPAN_CLIENT = 1, 3
 
-    Model steps carry the GenAI semantic-convention attributes (model, token
-    usage) plus the cost and, for a cache hit, the call it was served from.
+
+def trace(conn: psycopg.Connection, run_id: str, *, with_cost: bool = True) -> dict:
+    """One run as OTLP/JSON, in the OpenTelemetry GenAI semantic conventions.
+
+    The root is an `invoke_agent` span for the run. Each model call is a `chat` span
+    (provider, model, token usage) and each other step an `execute_tool` span. With
+    cost, spans also carry the price and, for a cache hit, the call it was served
+    from. Without cost, only the journal is read: the runtime exports this way,
+    because its login cannot read prices (docs/cost.md).
     """
     with conn.cursor(row_factory=dict_row) as cur:
-        run = cur.execute(
-            """select r.id::text, r.agent, r.status, r.started_at, r.finished_at, rc.usd::float, rc.requester
-               from counsel.runs r join counsel.run_costs rc on rc.run_id = r.id where r.id = %s""",
-            (run_id,)).fetchone()
+        if with_cost:
+            run = cur.execute(
+                """select r.id::text, r.agent, r.status, r.started_at, r.finished_at, rc.usd::float, rc.requester
+                   from counsel.runs r join counsel.run_costs rc on rc.run_id = r.id where r.id = %s""",
+                (run_id,)).fetchone()
+        else:
+            run = cur.execute(
+                """select id::text, agent, status, started_at, finished_at, null::float as usd, null as requester
+                   from counsel.runs where id = %s""", (run_id,)).fetchone()
         if run is None:
             raise LookupError(f"no run {run_id}")
         steps = cur.execute("select seq, name, finished_at from counsel.steps where run_id = %s order by seq",
                             (run_id,)).fetchall()
-        calls = {c["step_seq"]: c for c in cur.execute(
-            """select step_seq, provider, model, input_tokens, output_tokens, usd::float, latency_ms,
-                      cached_from, error from counsel.call_costs where run_id = %s and error is null""",
-            (run_id,))}
+        if with_cost:
+            calls = {c["step_seq"]: c for c in cur.execute(
+                """select step_seq, provider, model, input_tokens, output_tokens, usd::float, latency_ms,
+                          cached_from, error from counsel.call_costs where run_id = %s and error is null""",
+                (run_id,))}
+        else:
+            calls = {c["step_seq"]: c for c in cur.execute(
+                """select step_seq, provider, model, prompt_tokens as input_tokens, output_tokens,
+                          null::float as usd, latency_ms, cached_from, error
+                   from counsel.model_calls where run_id = %s and error is null""", (run_id,))}
     trace_id = run_id.replace("-", "")
     root = trace_id[:16]
 
@@ -327,10 +344,12 @@ def trace(conn: psycopg.Connection, run_id: str) -> dict:
         return [{"key": k, "value": val(v)} for k, v in d.items() if v is not None]
 
     end = run["finished_at"] or (steps[-1]["finished_at"] if steps else run["started_at"])
-    spans = [{"traceId": trace_id, "spanId": root, "name": f"run {run['agent']}",
+    spans = [{"traceId": trace_id, "spanId": root, "name": f"invoke_agent {run['agent']}",
+              "kind": SPAN_INTERNAL,
               "startTimeUnixNano": _ns(run["started_at"]), "endTimeUnixNano": _ns(end),
               "status": {"code": 1 if run["status"] == "succeeded" else 2},
-              "attributes": attrs({"counsel.agent": run["agent"], "counsel.run_id": run_id,
+              "attributes": attrs({"gen_ai.operation.name": "invoke_agent", "gen_ai.agent.name": run["agent"],
+                                   "counsel.agent": run["agent"], "counsel.run_id": run_id,
                                    "counsel.status": run["status"],
                                    "counsel.requester": run["requester"], "counsel.cost_usd": run["usd"]})}]
     prev = run["started_at"]
@@ -340,13 +359,16 @@ def trace(conn: psycopg.Connection, run_id: str) -> dict:
         start = prev
         if call:
             start = s["finished_at"] - timedelta(milliseconds=call["latency_ms"])
-            a.update({"gen_ai.operation.name": "chat", "gen_ai.system": call["provider"],
-                      "gen_ai.request.model": call["model"],
+            a.update({"gen_ai.operation.name": "chat", "gen_ai.provider.name": call["provider"],
+                      "gen_ai.request.model": call["model"], "gen_ai.response.model": call["model"],
                       "gen_ai.usage.input_tokens": call["input_tokens"],
                       "gen_ai.usage.output_tokens": call["output_tokens"],
                       "counsel.cost_usd": call["usd"], "counsel.cached_from": call["cached_from"]})
+        else:
+            a.update({"gen_ai.operation.name": "execute_tool", "gen_ai.tool.name": s["name"]})
         spans.append({"traceId": trace_id, "spanId": f"{root[:12]}{s['seq']:04x}", "parentSpanId": root,
-                      "name": ("chat " + call["model"]) if call else s["name"],
+                      "name": ("chat " + call["model"]) if call else f"execute_tool {s['name']}",
+                      "kind": SPAN_CLIENT if call else SPAN_INTERNAL,
                       "startTimeUnixNano": _ns(min(start, s["finished_at"])),
                       "endTimeUnixNano": _ns(s["finished_at"]), "attributes": attrs(a)})
         prev = s["finished_at"]

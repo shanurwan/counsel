@@ -21,6 +21,8 @@ load against Counsel's workload.
 | LangGraph with a Postgres checkpointer | Good | Yes | Partly: checkpoints are framework-owned, and role switching per step would fight its connection handling | A library, so cheap |
 | A vendor's agent SDK | Varies | Often tied to the vendor | No: its tool loop is the centre, and Counsel's agents mostly never choose an action | A library, so cheap |
 | pgmq with a small worker | Good | Yes | Yes for the queue, but it does not deduplicate (ADR-002) | Cheap |
+| DBOS Transact (added 2026-11-08, see below) | Good, with workflow versioning and a run UI | Yes | Closest: a transaction step's output is recorded in the same database transaction as its write. Switching to an agent's role inside that transaction is not a documented feature | A library on Postgres, so cheap |
+| Absurd (added 2026-11-08) | Good; its README calls it an experiment | Yes | Partly: Postgres-native leases and claims, but steps are not committed with the caller's own write | One SQL file, so cheap |
 | Build: a leased job table and a step journal | Good enough | Yes | Yes, by construction | About 340 lines to own |
 
 ## Decision
@@ -43,6 +45,29 @@ have to reinvent it with compensation.
 Adopt an engine if agents start needing long waits with timers across many systems,
 or if more than one team writes runtime code. The agent interface (`ctx.step`,
 `ctx.complete`) is small enough that behaviours could move without being rewritten.
+
+## Addendum, 2026-11-08: the Postgres-native peers
+
+The first version of this record compared Temporal and LangGraph and missed the two
+options a Postgres-minded reviewer names first.
+
+**DBOS Transact** already has the property this record calls the design. Its docs say
+a transaction step "records the outcome atomically in the same database transaction",
+and claim exactly-once effects on the application database
+([DBOS transactions](https://docs.dbos.dev/python/tutorials/transaction-tutorial)).
+Counsel's same-transaction journal is the same idea, not a new one. What Counsel adds
+on top: each step runs as the agent's own Postgres role, set inside that transaction;
+model calls are recorded as intents before they are made; each step renews and checks
+its lease ([red-team.md](../red-team.md), R1 and R2). DBOS is ahead on workflow
+versioning for runs in flight and on its run UI.
+
+**Absurd** ([GitHub](https://github.com/earendil-works/absurd)) is a Postgres-native
+engine in one SQL file, with leases and a web UI, and is the simpler model to compare
+against.
+
+The decision stands, for the role rule above. If Counsel ever needs runs that wait for
+days, or versioned code for runs in flight, DBOS is the first engine to try, and the
+test is whether a step can switch to the agent's role inside its own transaction.
 
 ## Model-agnostic
 

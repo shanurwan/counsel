@@ -25,6 +25,7 @@ from psycopg.rows import dict_row
 from .compiler import ORCHESTRATOR_ROLE
 from .log import log
 from .model import Completion, Model, ModelError, request_hash
+from .otel import export_run
 from .registry import Agent
 
 LEASE = timedelta(seconds=150)  # longer than Cloud Run's 120 s request timeout
@@ -262,6 +263,8 @@ class Worker:
     worker_id: str = field(default_factory=lambda: f"{socket.gethostname()}:{id(object())}")
     clock: Callable[[], datetime] = utcnow
     stopping: threading.Event = field(default_factory=lambda: STOPPING)
+    # Per instance, not a class default: a function stored on the class would bind as a method.
+    export: Callable[[psycopg.Connection, Any], Any] = field(default_factory=lambda: export_run)
 
     # --- scheduling ------------------------------------------------------------
 
@@ -422,6 +425,9 @@ class Worker:
                 "update counsel.runs set status = %s, finished_at = %s, error = %s where id = %s",
                 (run_status, now, error, run_id),
             )
+        # After the run is closed, outside its transaction: a collector that is down
+        # costs a warning, never the run (otel.py; off unless an endpoint is set).
+        self.export(self.conn, run_id)
 
     def _rollback(self, run_id, reason: str) -> None:
         """A run that did not finish takes back what it wrote (0010_contact_rollback.sql)."""

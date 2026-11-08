@@ -55,6 +55,13 @@ the gate fails closed.
 Currently 17 of the 18 agree (κ = 0.89). In the one disagreement the judge was
 stricter than the hand label.
 
+That number is less certain than it looks. `counsel eval` also reports a 95%
+bootstrap interval, currently 0.65 to 1.00: still above the 0.6 bar, but 18 labels
+cannot say much more. Two things would tighten it, and both need people, not code:
+more hand labels (published calibration workflows use 100 to 200), and a second
+person labelling the same items, because a judge cannot be shown to agree with people
+better than they agree with each other. Neither exists yet.
+
 ## The gate
 
 A suite passes when both hold:

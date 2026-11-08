@@ -38,6 +38,9 @@ jobs:
       - name: Compiled grants match the registry
         run: counsel compile --check
 
+      - name: OWASP coverage page matches its source and cites only real tests
+        run: counsel compliance --check
+
       - name: Apply to a fresh database
         run: |
           psql "$COUNSEL_TEST_ADMIN_URL" -c "create database counsel"
@@ -143,7 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write # keyless auth to GCP through Workload Identity Federation
+      id-token: write # keyless auth to GCP, and signing the attestations below
+      attestations: write # build provenance and SBOM for the deployed image
     concurrency:
       group: deploy
       cancel-in-progress: false
@@ -178,9 +182,34 @@ jobs:
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
           docker build -t "${IMAGE}:${GITHUB_SHA}" .
           docker push "${IMAGE}:${GITHUB_SHA}"
-      - name: Deploy the image by digest
+      - name: Resolve the pushed digest
+        id: image
         run: |
-          digest=$(gcloud artifacts docker images describe "${IMAGE}:${GITHUB_SHA}" --format='value(image_summary.digest)')
+          echo "digest=$(gcloud artifacts docker images describe "${IMAGE}:${GITHUB_SHA}" --format='value(image_summary.digest)')" >> "$GITHUB_OUTPUT"
+      # Who built this exact image, from which commit and workflow, signed with
+      # Sigstore and kept by GitHub: `gh attestation verify oci://<image>@<digest> -R shanurwan/counsel`.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+      # What is inside it, as an SPDX SBOM, attested to the same digest.
+      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE }}@${{ steps.image.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+          upload-release-assets: false
+      - uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          sbom-path: sbom.spdx.json
+      - name: Deploy the image by digest
+        env:
+          DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          digest="$DIGEST"
           gcloud run services update counsel --region "$REGION" --image "${IMAGE}@${digest}" --quiet
           # The support pool and the hosted MCP server run the same image, once
           # infra/pools.tf and infra/mcp.tf have created them.

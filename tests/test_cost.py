@@ -2,9 +2,11 @@
 never changes an answer, and the report turns the log into actions.
 """
 
+import json
 from dataclasses import replace
 from datetime import timedelta
 
+import psycopg
 import pytest
 
 from counsel import audit, cost, registry
@@ -189,6 +191,64 @@ def test_a_projected_overrun_is_flagged_to_the_owner(admin, make_worker, agents)
     report = cost.build(admin, tight, NOW - timedelta(days=1), NOW + timedelta(days=1))
     budget = next(f for f in report["findings"] if f["kind"] == "budget")
     assert budget["owner"] == "people-ops" and "ask_handbook" in budget["title"]
+
+
+def test_spans_follow_the_genai_conventions(admin, make_worker):
+    ask(admin, QUESTION)
+    make_worker(UsageModel(), HANDBOOK_ONLY).tick()
+    run_id = str(one(admin, "select id from counsel.runs")[0])
+    spans = cost.trace(admin, run_id)["resourceSpans"][0]["scopeSpans"][0]["spans"]
+    attrs = [{a["key"]: list(a["value"].values())[0] for a in s["attributes"]} for s in spans]
+    assert spans[0]["name"] == "invoke_agent ask_handbook"
+    assert attrs[0]["gen_ai.operation.name"] == "invoke_agent" and attrs[0]["gen_ai.agent.name"] == "ask_handbook"
+    ops = {a["gen_ai.operation.name"] for a in attrs[1:]}
+    assert ops == {"chat", "execute_tool"}
+    chat = next(a for a in attrs if a["gen_ai.operation.name"] == "chat")
+    assert chat["gen_ai.provider.name"] and "gen_ai.system" not in chat
+    assert all(s["parentSpanId"] == spans[0]["spanId"] for s in spans[1:])
+
+
+def test_each_finished_run_is_sent_to_a_collector_when_one_is_set(admin, runtime_url, agents, monkeypatch):
+    from counsel import otel
+    from counsel.behaviors import IMPLEMENTATIONS
+    from counsel.runtime import Worker
+
+    sent = []
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://otlp.example.com/otlp/")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=Basic%20abc")
+
+    def capture(conn, run_id):
+        return otel.export_run(conn, run_id, post=lambda url, body, headers: sent.append((url, body, headers)) or 200)
+
+    ask(admin, QUESTION)
+    with psycopg.connect(runtime_url, autocommit=True) as conn:
+        Worker(conn, {a.name: a for a in agents if a.pool == "core"}, {"ask_handbook": IMPLEMENTATIONS["ask_handbook"]},
+               UsageModel(), clock=Clock(), export=capture).tick()
+    [(url, body, headers)] = sent
+    assert url == "https://otlp.example.com/otlp/v1/traces"
+    assert headers["Authorization"] == "Basic abc"
+    spans = json.loads(body)["resourceSpans"][0]["scopeSpans"][0]["spans"]
+    assert spans[0]["name"] == "invoke_agent ask_handbook"
+    # The runtime cannot read prices, so its traces carry none.
+    assert not any(a["key"] == "counsel.cost_usd" for s in spans for a in s["attributes"])
+
+
+def test_a_collector_that_is_down_never_fails_the_run(admin, runtime_url, agents, monkeypatch):
+    from counsel import otel
+    from counsel.behaviors import IMPLEMENTATIONS
+    from counsel.runtime import Worker
+
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://otlp.example.com")
+
+    def down(url, body, headers):
+        raise OSError("connection refused")
+
+    ask(admin, QUESTION)
+    with psycopg.connect(runtime_url, autocommit=True) as conn:
+        summary = Worker(conn, {a.name: a for a in agents if a.pool == "core"},
+                         {"ask_handbook": IMPLEMENTATIONS["ask_handbook"]}, UsageModel(), clock=Clock(),
+                         export=lambda c, r: otel.export_run(c, r, post=down)).tick()
+    assert [r["result"] for r in summary["runs"]] == ["succeeded"]
 
 
 def test_a_run_exports_as_opentelemetry_spans(admin, make_worker):

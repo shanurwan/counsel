@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import random
 import re
 import uuid
 from dataclasses import dataclass, field, replace
@@ -90,6 +91,19 @@ def kappa(a: list[bool], b: list[bool]) -> float:
     return 1.0 if expected == 1 else (observed - expected) / (1 - expected)
 
 
+def kappa_interval(a: list[bool], b: list[bool], *, resamples: int = 2000, level: float = 0.95,
+                   seed: int = 0) -> tuple[float, float]:
+    """Percentile bootstrap interval for kappa. A handful of labels gives a wide one, and the
+    point estimate alone would overstate how well the judge is known to agree."""
+    if not a:
+        return 0.0, 0.0
+    rng = random.Random(seed)  # nosec B311 - resampling for a statistic, not security
+    pairs = list(zip(a, b))
+    stats = sorted(kappa(*map(list, zip(*(rng.choice(pairs) for _ in pairs)))) for _ in range(resamples))
+    tail = (1 - level) / 2
+    return stats[int(tail * resamples)], stats[min(resamples - 1, int((1 - tail) * resamples))]
+
+
 # --- models ---------------------------------------------------------------------------
 
 
@@ -149,7 +163,9 @@ def calibrate(judge: Judge) -> dict:
             misses.append({"rubric": item["rubric"], "label": item["label"], "output": item["output"][:100],
                            "judge": "pass" if ok else "fail", "reason": reason})
     k = kappa(labels, verdicts)
-    return {"kappa": k, "agreed": sum(x == y for x, y in zip(labels, verdicts)), "n": len(labels),
+    low, high = kappa_interval(labels, verdicts)
+    return {"kappa": k, "kappa_95": [round(low, 2), round(high, 2)],
+            "agreed": sum(x == y for x, y in zip(labels, verdicts)), "n": len(labels),
             "min_kappa": doc["min_kappa"], "ok": k >= doc["min_kappa"], "disagreements": misses}
 
 
@@ -547,7 +563,8 @@ def render(report: dict) -> str:
            f"**{'PASS' if report['ok'] else 'FAIL'}**. Model: {report['mode']}. Each case runs through the real "
            "runtime on a fresh database; checks read what was written. Harm checks run on every case.", "",
            f"Judge calibration: {c['agreed']} of {c['n']} hand labels agreed, Cohen's kappa "
-           f"{c['kappa']:.2f} (minimum {c['min_kappa']}) — {'trusted' if c['ok'] else 'NOT trusted, gate fails closed'}.",
+           f"{c['kappa']:.2f} (95% bootstrap interval {c['kappa_95'][0]:.2f} to {c['kappa_95'][1]:.2f}; "
+           f"minimum {c['min_kappa']}) — {'trusted' if c['ok'] else 'NOT trusted, gate fails closed'}.",
            "", "| Suite | Passed | Pass rate (95% Wilson) | Gate (lower bound ≥) | Safety failures | Result |",
            "|---|--:|--:|--:|---|---|"]
     for name, g in report["suites"].items():

@@ -56,6 +56,28 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_compliance(args: argparse.Namespace) -> int:
+    from . import compliance
+
+    try:
+        page = compliance.build()
+    except compliance.ComplianceError as e:
+        for p in e.problems:
+            print(f"invalid: {p}", file=sys.stderr)
+        return 1
+    if args.check:
+        current = compliance.OUTPUT.read_text(encoding="utf-8") if compliance.OUTPUT.exists() else ""
+        if current != page:
+            print(f"drift: {compliance.OUTPUT.relative_to(ROOT)} is out of date; run `counsel compliance`",
+                  file=sys.stderr)
+            return 1
+        print("ok: OWASP coverage matches compliance/owasp.yaml and every cited test exists")
+        return 0
+    compliance.OUTPUT.write_text(page, encoding="utf-8", newline="\n")
+    print(f"wrote {compliance.OUTPUT.relative_to(ROOT)}")
+    return 0
+
+
 def cmd_compile(args: argparse.Namespace) -> int:
     sql = compile_sql(_load())
     if args.check:
@@ -482,6 +504,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("compile", help="compile the registry to db/generated/agents.sql")
     p.add_argument("--check", action="store_true", help="fail if the compiled file is out of date")
     p.set_defaults(fn=cmd_compile)
+
+    p = sub.add_parser("compliance", help="render docs/compliance.md from compliance/owasp.yaml")
+    p.add_argument("--check", action="store_true", help="fail if the page is out of date or cites a missing test")
+    p.set_defaults(fn=cmd_compliance)
 
     p = sub.add_parser("migrate", help="apply migrations and compiled grants")
     p.add_argument("--dsn")

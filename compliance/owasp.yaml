@@ -1,0 +1,286 @@
+# What Counsel does about each risk, and the tests that show it.
+# `counsel compliance` renders docs/compliance.md from this file and fails if any
+# evidence names a test or file that does not exist. CI runs the tests themselves,
+# so every row's evidence passed on the commit that published it.
+#
+# coverage: full = handled, with tests; partial = handled in part, the gap is named;
+# n/a = the risk needs something Counsel does not have.
+
+reviewed: 2026-11-08
+owner: platform
+
+frameworks:
+  asi:
+    name: OWASP Top 10 for Agentic Applications 2026
+    url: https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026
+  llm:
+    name: OWASP Top 10 for LLM Applications 2025
+    url: https://genai.owasp.org/llm-top-10/
+  mcp:
+    name: MCP Security Best Practices (2025-11-25)
+    url: https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices
+
+risks:
+  - id: ASI01
+    framework: asi
+    name: Agent Goal Hijack
+    coverage: partial
+    how: >
+      Contained, not prevented. An injected ticket, issue or update can steer what an
+      agent writes, but not past its Postgres role: no commitment, secret, customer
+      thread or audit edit is reachable. Drafts that offer an action are flagged for the
+      reviewer, and a person publishes every draft. The incident bench replays real
+      hijacks with a model scripted to obey the attacker.
+    evidence:
+      - tests/test_support.py::test_no_agent_can_read_or_touch_secrets
+      - tests/test_support.py::test_a_draft_offering_an_action_is_flagged_for_the_reviewer
+      - tests/test_cost.py::test_the_simulated_model_obeys_an_injected_ticket
+      - bench/expected.json
+    remains: >
+      No classifier on incoming text. Injected text can still shape an allowed draft or
+      nudge; the person reviewing it is the last check.
+
+  - id: ASI02
+    framework: asi
+    name: Tool Misuse & Exploitation
+    coverage: full
+    how: >
+      The model never writes SQL. Tool calls are typed operations, and Postgres decides
+      whether the agent's role may do them, so there is no allow-list in code to get
+      wrong. The GitHub connector cannot assign, close or label.
+    evidence:
+      - tests/test_support.py::test_tool_calls_cannot_carry_sql
+      - tests/test_support.py::test_tool_layer_has_no_allow_list_postgres_decides
+      - tests/test_platform.py::test_the_connector_has_no_way_to_assign_close_or_label
+    remains: >
+      An agent can still overuse what it is allowed: a nudge within its budget, a draft a
+      person then publishes.
+
+  - id: ASI03
+    framework: asi
+    name: Identity & Privilege Abuse
+    coverage: partial
+    how: >
+      Each agent is a Postgres role compiled from the registry. `counsel audit` reads the
+      live privilege matrix on every push and fails on a commitment grant, a security
+      definer backdoor, an unregistered role, or a runtime login that reaches another
+      pool's agent. The agent that reads customer tickets runs on its own login and
+      service.
+    evidence:
+      - tests/test_commitments.py::test_no_role_can_write_a_commitment
+      - tests/test_commitments.py::test_audit_catches_security_definer_backdoor
+      - tests/test_red_team.py::test_each_runtime_login_reaches_only_its_own_pools_agents
+      - tests/test_mcp_hosted.py::test_a_token_bound_to_another_server_is_refused_even_when_lenient
+    remains: >
+      The support pool's login still chooses which ticket the drafter sees
+      (docs/red-team.md, R3). Strict MCP audience checks wait on Supabase Auth binding
+      the audience (supabase/auth#2610).
+
+  - id: ASI04
+    framework: asi
+    name: Agentic Supply Chain Vulnerabilities
+    coverage: partial
+    how: >
+      Every GitHub Action is pinned by commit, workflows are audited by zizmor, Python
+      dependencies by pip-audit and Dependabot, history by gitleaks, infrastructure by
+      checkov, and the whole repository by OpenSSF Scorecard. Every deployed image carries
+      signed build provenance and an SPDX SBOM. Counsel loads no third-party MCP servers
+      or agent tools. Models are named explicitly and every call records which one
+      answered.
+    evidence:
+      - .github/workflows/security.yml
+      - .github/workflows/scorecard.yml
+      - .github/workflows/ci.yml
+      - .github/dependabot.yml
+      - tests/test_model.py::test_success_records_model_and_usage
+    remains: >
+      Model weights are a hosted API, so their provenance is the provider's. The Python
+      package is not published or signed; only the deployed image is attested.
+
+  - id: ASI05
+    framework: asi
+    name: Unexpected Code Execution
+    coverage: full
+    how: >
+      No agent runs code. Model output is parsed as a typed tool call or kept as text;
+      nothing is evaluated, and an unknown tool is returned to the model, not executed.
+    evidence:
+      - tests/test_support.py::test_tool_calls_cannot_carry_sql
+      - tests/test_support.py::test_unknown_table_is_returned_to_the_model_not_raised
+    remains: None known.
+
+  - id: ASI06
+    framework: asi
+    name: Memory & Context Poisoning
+    coverage: partial
+    how: >
+      Agents cannot write the handbook they retrieve from. Answers must cite it, and the
+      evals fail a missing or invented citation. Cached answers are keyed by the whole
+      prompt, handbook text included, so an edited document is never served stale.
+    evidence:
+      - tests/test_eval.py::test_a_missing_or_invented_citation_fails
+      - tests/test_cost.py::test_an_edited_document_is_a_new_request
+    remains: >
+      Anyone who can edit the handbook can poison it; documents are not scanned.
+
+  - id: ASI07
+    framework: asi
+    name: Insecure Inter-Agent Communication
+    coverage: n/a
+    how: >
+      Agents never message each other. Work reaches an agent only as a job row a
+      database trigger or schedule creates.
+    evidence:
+      - db/migrations/0003_runtime.sql
+    remains: Would apply if agents were given a way to call one another.
+
+  - id: ASI08
+    framework: asi
+    name: Cascading Failures
+    coverage: partial
+    how: >
+      Each step is fenced to its lease, so a late worker cannot write over a newer one.
+      Model calls have a time budget, failed jobs back off and dead-letter, a dead run
+      takes back what it wrote, Postgres caps how often each person is messaged, and a
+      billing guard cuts spend off.
+    evidence:
+      - tests/test_red_team.py::test_after_a_takeover_only_the_new_holder_writes_and_closes_the_run
+      - tests/test_red_team.py::test_one_call_cannot_outlast_its_budget_whatever_the_retries
+      - tests/test_runtime.py::test_failures_back_off_then_dead_letter_with_an_audit_record
+      - tests/test_platform.py::test_a_dead_run_takes_back_what_it_wrote_atomically
+      - tests/test_platform.py::test_postgres_refuses_a_message_over_the_budget
+      - tests/test_billing_guard.py::test_at_threshold_unlinks
+    remains: >
+      One region and one instance per pool; no breaker that pauses every agent when one
+      provider degrades.
+
+  - id: ASI09
+    framework: asi
+    name: Human-Agent Trust Exploitation
+    coverage: full
+    how: >
+      A person publishes every draft, on their own connection. A carried note needs a
+      consent that hashes the exact text. An assistant's write is approved in the
+      person's own browser against a hash of what they read; the assistant's own token,
+      an old sign-in and changed text are refused by the database.
+    evidence:
+      - tests/test_ledger.py::test_a_flagged_draft_cannot_be_published_unedited
+      - tests/test_standup.py::test_a_carry_whose_text_was_changed_after_consent_is_refused_and_audited
+      - tests/test_proposals.py::test_the_assistants_own_token_cannot_approve
+      - tests/test_proposals.py::test_the_approval_covers_only_the_text_the_person_read
+    remains: >
+      A person can still approve something they did not read carefully.
+
+  - id: ASI10
+    framework: asi
+    name: Rogue Agents
+    coverage: partial
+    how: >
+      A role exists only through the registry, and the audit fails on any other. The
+      audit log is append-only, every refused write is recorded, and a whole run can be
+      rolled back. drift_watcher raises platform problems as draft fixes.
+    evidence:
+      - tests/test_commitments.py::test_audit_catches_unregistered_agent
+      - tests/test_commitments.py::test_audit_log_is_append_only
+      - tests/test_platform.py::test_a_dead_letter_becomes_one_draft_fix_with_no_model
+    remains: >
+      No anomaly detection on what agents write over time.
+
+  - id: LLM01
+    framework: llm
+    name: Prompt Injection
+    coverage: partial
+    how: Same as ASI01. Containment by role, not detection.
+    evidence:
+      - tests/test_support.py::test_no_agent_can_post_to_the_customer_thread
+      - tests/test_cost.py::test_the_simulated_model_obeys_an_injected_ticket
+    remains: No classifier; injected text can shape an allowed draft.
+
+  - id: LLM02
+    framework: llm
+    name: Sensitive Information Disclosure
+    coverage: partial
+    how: >
+      Integration tokens are unreachable by every agent role. The drafter sees only the
+      ticket its job is for. The dashboard login reads cost views only, never prompts.
+    evidence:
+      - tests/test_support.py::test_drafter_sees_only_the_ticket_it_was_started_for
+      - tests/test_cost.py::test_the_reader_sees_no_prompt_ticket_task_or_secret_and_writes_nothing
+    remains: >
+      Prompts and responses are journaled in full for replay, so the journal holds
+      ticket text; access to it is limited to the orchestrator, the MCP login and owners.
+
+  - id: LLM06
+    framework: llm
+    name: Excessive Agency
+    coverage: full
+    how: >
+      The founding rule: no agent can set an owner, a due date or a status, and a trigger
+      refuses it even after a mistaken grant. CI fails if any role could.
+    evidence:
+      - tests/test_commitments.py::test_no_role_can_write_a_commitment
+      - tests/test_commitments.py::test_mistaken_update_grant_is_caught_by_trigger_and_audit
+    remains: None known for commitments; drafts and nudges are agency a person reviews.
+
+  - id: LLM10
+    framework: llm
+    name: Unbounded Consumption
+    coverage: full
+    how: >
+      Each call has a time budget, questions are rate-limited, owners get a projected
+      overrun, and the billing guard unlinks billing past the budget.
+    evidence:
+      - tests/test_red_team.py::test_one_call_cannot_outlast_its_budget_whatever_the_retries
+      - tests/test_cost.py::test_a_projected_overrun_is_flagged_to_the_owner
+      - tests/test_billing_guard.py::test_at_threshold_unlinks
+    remains: None known.
+
+  - id: MCP-TOKEN-PASSTHROUGH
+    framework: mcp
+    name: Token passthrough
+    coverage: full
+    how: >
+      The server uses the access token only to learn who is calling. It never forwards
+      it; the database is reached with the server's own narrow login.
+    evidence:
+      - tests/test_mcp_hosted.py::test_the_mcp_login_still_cannot_read_tasks_or_links_directly
+    remains: None known.
+
+  - id: MCP-AUDIENCE
+    framework: mcp
+    name: Tokens issued for another server
+    coverage: partial
+    how: >
+      A token bound to a different resource is refused, and every call logs whether its
+      audience was bound. Strict checking is ready behind a setting.
+    evidence:
+      - tests/test_mcp_hosted.py::test_a_token_bound_to_another_server_is_refused_even_when_lenient
+      - tests/test_mcp_hosted.py::test_strict_mode_refuses_an_unbound_token
+    remains: >
+      Supabase Auth gives every token aud "authenticated" (supabase/auth#2610), so strict
+      mode stays off until it binds the audience.
+
+  - id: MCP-CONSENT
+    framework: mcp
+    name: Consent for what a client does (confused deputy)
+    coverage: full
+    how: >
+      Connecting consents to a client; each write also needs the person's approval of the
+      exact text, sent by URL-mode elicitation where the client supports it, and checked
+      by the database.
+    evidence:
+      - tests/test_proposals.py::test_a_client_that_supports_url_elicitation_is_sent_to_the_approval_page
+      - tests/test_proposals.py::test_the_approval_link_is_not_signed_in
+      - tests/test_proposals.py::test_the_mcp_login_cannot_reach_the_approval_at_all
+    remains: None known.
+
+  - id: MCP-SESSION
+    framework: mcp
+    name: Session hijacking
+    coverage: n/a
+    how: >
+      The hosted server is stateless: every request carries its own token and nothing is
+      kept between requests, so there is no session id to steal.
+    evidence:
+      - src/counsel/mcp_server.py
+    remains: Would apply if the server kept sessions.
