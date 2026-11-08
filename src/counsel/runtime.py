@@ -319,11 +319,13 @@ class Worker:
                          select id from counsel.jobs
                          where not_before <= %(now)s and attempts < max_attempts
                            and (status = 'queued' or (status = 'running' and lease_until < %(now)s))
+                           -- This worker's pool only: its login cannot become anyone else's agents.
+                           and agent = any(%(agents)s)
                          order by id
                          for update skip locked
                          limit 1)
                        returning j.*""",
-                    {"until": now + LEASE, "me": self.worker_id, "now": now},
+                    {"until": now + LEASE, "me": self.worker_id, "now": now, "agents": sorted(self.agents)},
                 )
                 return cur.fetchone()
 

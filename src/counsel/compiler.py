@@ -8,7 +8,7 @@ agent role and grants back exactly what the registry says.
 
 from __future__ import annotations
 
-from .registry import Agent
+from .registry import CORE_POOL, Agent, login_for
 
 RUNTIME_ROLE = "counsel_runtime"
 GROUP_ROLE = "counsel_agents"
@@ -90,8 +90,22 @@ alter role {runtime} noinherit nocreatedb nocreaterole nobypassrls;
 grant {orchestrator} to {runtime};
 """
 
+# Each further pool gets its own login, shaped like the core one. A login can
+# become only its own pool's agents (docs/red-team.md, R3).
+POOL_BLOCK = """
+-- Runtime pool '{pool}': its own login, password set at deploy time.
+do $$
+begin
+  if not exists (select from pg_roles where rolname = '{login}') then
+    create role {login} login noinherit;
+  end if;
+end $$;
+alter role {login} noinherit nocreatedb nocreaterole nobypassrls;
+grant {orchestrator} to {login};
+"""
+
 AGENT_BLOCK = """
--- {name} ({tier}) owner: {owner}
+-- {name} ({tier}, pool {pool}) owner: {owner}
 -- {description}
 do $$
 begin
@@ -101,11 +115,17 @@ begin
 end $$;
 alter role {role} nologin nocreatedb nocreaterole nobypassrls;
 grant {group} to {role};
-grant {role} to {runtime};
+grant {role} to {login};
+{revokes}
 revoke all on all tables in schema work, kb, counsel, support from {role};
 revoke all on schema work, kb, counsel, support from {role};
 {grants}
 """
+
+
+def logins(agents: list[Agent]) -> list[str]:
+    """Every runtime login: the core one always, plus one per further pool."""
+    return sorted({RUNTIME_ROLE} | {a.login for a in agents})
 
 
 def grants_for(agent: Agent) -> list[str]:
@@ -143,15 +163,21 @@ def settings_sql(agents: list[Agent]) -> str:
 
 def compile_sql(agents: list[Agent]) -> str:
     out = [HEADER.format(group=GROUP_ROLE, runtime=RUNTIME_ROLE, orchestrator=ORCHESTRATOR_ROLE)]
+    all_logins = logins(agents)
+    for pool in sorted({a.pool for a in agents} - {CORE_POOL}):
+        out.append(POOL_BLOCK.format(pool=pool, login=login_for(pool), orchestrator=ORCHESTRATOR_ROLE))
     for agent in sorted(agents, key=lambda a: a.name):
         out.append(AGENT_BLOCK.format(
             name=agent.name,
             tier=agent.tier,
+            pool=agent.pool,
             owner=agent.owner,
             description=agent.description,
             role=agent.role,
             group=GROUP_ROLE,
-            runtime=RUNTIME_ROLE,
+            login=agent.login,
+            # Taken back from any other runtime login, including one that held it before.
+            revokes="\n".join(f"revoke {agent.role} from {other};" for other in all_logins if other != agent.login),
             grants="\n".join(grants_for(agent)),
         ))
     out.append(settings_sql(agents))

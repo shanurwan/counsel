@@ -15,6 +15,7 @@ constants below, and the report states them.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import math
@@ -32,6 +33,7 @@ from . import cost, registry
 from . import review
 from .behaviors import ACTION_FLAG, IMPLEMENTATIONS, SUPPORT_NOT_COVERED
 from .cli import migrate
+from .compiler import logins
 from .model import Completion, ModelError, request_hash
 from .runtime import Worker
 
@@ -251,8 +253,9 @@ def fresh(admin_url: str) -> str:
     url = psycopg.conninfo.make_conninfo(admin_url, dbname=SIM_DB)
     with psycopg.connect(url) as conn:
         migrate(conn, out=lambda _line: None)
-        conn.execute(sql.SQL("alter role {} password {}").format(
-            sql.Identifier("counsel_runtime"), sql.Literal(SIM_PASSWORD)))
+        for login in logins(registry.load(ROOT / "agents")):
+            conn.execute(sql.SQL("alter role {} password {}").format(
+                sql.Identifier(login), sql.Literal(SIM_PASSWORD)))
         conn.execute(SEED.read_text(encoding="utf-8"))
         # The seed's demo tickets belong to the live demo, not to this month.
         conn.execute("delete from counsel.jobs")
@@ -273,10 +276,15 @@ def run_month(admin_url: str, agents: list[registry.Agent], days: int = DAYS) ->
         handles = [r[0] for r in admin.execute("select handle from work.people order by handle")]
 
         clock = Clock(START)
-        runtime = psycopg.conninfo.make_conninfo(url, user="counsel_runtime", password=SIM_PASSWORD)
-        with psycopg.connect(runtime, autocommit=True) as rconn:
-            worker = Worker(rconn, {a.name: a for a in agents}, SIMULATED, SimulatedModel(),
-                            worker_id="sim", clock=clock)
+        model = SimulatedModel()
+        # One worker per runtime pool, each on its own login, as on Cloud Run.
+        with contextlib.ExitStack() as stack:
+            workers = []
+            for pool in sorted({a.pool for a in agents}):
+                runtime = psycopg.conninfo.make_conninfo(url, user=registry.login_for(pool), password=SIM_PASSWORD)
+                rconn = stack.enter_context(psycopg.connect(runtime, autocommit=True))
+                workers.append(Worker(rconn, {a.name: a for a in agents if a.pool == pool}, SIMULATED, model,
+                                      worker_id=f"sim-{pool}", clock=clock))
             for d in range(days):
                 day = START + timedelta(days=d)
                 n_q, n_t, n_u = _events_for_day(day, rng)
@@ -311,7 +319,8 @@ def run_month(admin_url: str, agents: list[registry.Agent], days: int = DAYS) ->
                     admin.execute("update counsel.jobs set not_before = %s where status = 'queued' "
                                   "and not_before > %s", (at_hour + timedelta(minutes=59), at_hour + timedelta(hours=2)))
                     clock.now = at_hour + timedelta(hours=1, minutes=5)
-                    worker.tick(budget_s=600)
+                    for worker in workers:
+                        worker.tick(budget_s=600)
                     review_drafts(admin, reviewer, clock.now)
     return url
 

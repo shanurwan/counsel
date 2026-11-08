@@ -13,7 +13,7 @@ Each finding has a test that reproduces it in
 |---|---|---|---|---|
 | R1 | A worker kept writing after its lease expired | Production logs and journal, 4 and 5 Nov | High: two workers could write one run | Fixed |
 | R2 | A model call could be paid for twice, and its real duration was hidden | Code review, confirmed by R1's timings | Medium: cost and blind spots | Fixed; a narrow window remains |
-| R3 | The runtime login chooses which ticket an agent sees | Code review | Medium: a compromised runtime reads every ticket | Planned |
+| R3 | One runtime login could become every agent, and choose which ticket the drafter sees | Code review | Medium: a compromised runtime held every agent's rights and every ticket | Split by pool; scope binding planned |
 | R4 | Deploys and migrations while a run is in flight | Code review, two aborted ticks | Low | Fixed; the aborts were already handled |
 
 ## R1: a worker past its lease kept writing
@@ -75,36 +75,45 @@ answering and the call row committing still pays twice. The intent records it as
 lost. Closing it needs idempotency keys from the provider, which these APIs don't
 offer.
 
-## R3: the runtime login chooses which ticket an agent sees
+## R3: one runtime login could become every agent
 
 The support drafter reads one ticket: row-level security compares each row with
 `counsel.ticket`, a setting the runtime takes from the job. The model never writes
-SQL, so it cannot widen that. The runtime's own login can: it may switch to any
-agent's role and set the scope to any ticket. A compromised runtime, or a bug that
-passes the wrong id, reads every ticket, one at a time.
+SQL, so it cannot widen that. The runtime's own login could: it could switch to any
+agent's role and set the scope to any ticket. So the per-agent walls protected
+against the model, not against the runtime. A compromised runtime held every agent's
+rights at once, and every ticket.
 
-So the per-agent walls protect against the model, not against the runtime. What each
-component can do if compromised:
+**Fix: one login per pool.** Each agent names a runtime pool in the registry, and
+each pool has its own database login, Cloud Run service, service account and secret.
+An agent that reads customer data (`read_tickets`, `draft_support_replies`) cannot
+join the shared core pool; the registry refuses it. The support drafter now runs in
+the `support` pool as `counsel_runtime_support`. The core runtime, which runs the
+other seven agents, cannot become it, and `counsel audit` fails if any login can
+become an agent outside its own pool.
+
+The bench measures it. In the Salesloft case, a stolen support-integration
+credential used to reach 33 rows by becoming every agent. It now reaches 10: the
+handbook and the tickets, one at a time. Employees, tasks and updates are out of its
+reach.
+
+What each component can do if compromised now:
 
 | Component | If compromised, it can | Still bounded by |
 |---|---|---|
 | The model | Ask for the tool calls its agent offers | The agent's grants, row scope, the commitment trigger |
-| The runtime login | Act as any agent, with any scope: every agent's rights together, and any ticket | No agent can write a commitment, read integration tokens, or edit the audit log; `counsel audit` checks all three on every push |
+| The core runtime login | Act as any of the seven core agents together | Cannot become the drafter or read a ticket. No agent can write a commitment, read integration tokens or edit the audit log; `counsel audit` checks all of it on every push |
+| The support runtime login | Act as the drafter, and set its ticket scope to any ticket | Cannot read employees, tasks or updates, post to a customer, or read integration tokens |
 | The MCP login | Read the journal, ask a question, propose a note | Cannot approve a note ([per-action-consent.md](per-action-consent.md)) |
 | The migration login | Everything | It is the owner. It lives in Secret Manager, read by CI's deploy job and by the owner |
 
-**Plan:**
-
-1. **Bind the scope to a running job.** RLS will show a ticket only while a leased
-   job names it. A compromised runtime then has to forge job history to read a
-   ticket, which leaves a trace. This changes the browser console, the incident
-   bench and the eval harness, which set the scope directly, so it ships with them.
-2. **Split the runtime by risk tier.** A tier-0 runtime that cannot become the
-   support drafter needs a second Cloud Run service and login. It fits the free
-   tier, but it is the larger change.
-
-`test_the_runtime_login_can_still_choose_any_ticket_known_boundary` pins the
-boundary as it stands, so the fix has to change it on purpose.
+**What remains, planned:** the support login still sets the drafter's ticket scope
+itself, so it can read every ticket, one at a time. The next step binds the scope to
+a running job: RLS shows a ticket only while a leased job names it, so reading one
+means forging job history, which leaves a trace. The browser console, the incident
+bench and the eval harness set the scope directly, so that change ships with them.
+`test_the_support_login_still_chooses_the_drafters_ticket_known_boundary` pins the
+boundary, so the fix has to change it on purpose.
 
 ## R4: deploys and migrations while a run is in flight
 

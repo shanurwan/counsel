@@ -15,6 +15,7 @@ import pytest
 from counsel import cli
 from counsel.behaviors import IMPLEMENTATIONS, NOT_COVERED, ask_handbook
 from counsel.model import Completion, ModelError
+from counsel.registry import CORE_POOL, login_for
 from counsel.runtime import LEASE, Worker
 
 HANDBOOK_ONLY = {"ask_handbook": ask_handbook}  # keeps scheduled digests out of question tests
@@ -62,9 +63,13 @@ def make_worker(runtime_url, agents):
     conns = []
 
     def make(model=None, implementations=IMPLEMENTATIONS, clock=None):
-        conn = psycopg.connect(runtime_url, autocommit=True)
+        # One worker per pool, logged in as that pool's login, as each Cloud Run service is.
+        by_name = {a.name: a for a in agents}
+        pools = {by_name[n].pool for n in implementations if n in by_name}
+        pool = pools.pop() if len(pools) == 1 else CORE_POOL
+        conn = psycopg.connect(psycopg.conninfo.make_conninfo(runtime_url, user=login_for(pool)), autocommit=True)
         conns.append(conn)
-        return Worker(conn, {a.name: a for a in agents}, implementations,
+        return Worker(conn, {n: a for n, a in by_name.items() if a.pool == pool}, implementations,
                       model or FakeModel(), clock=clock or Clock())
 
     yield make

@@ -6,7 +6,10 @@ import { PGlite } from "@electric-sql/pglite";
 
 const db = await PGlite.create();
 await db.exec(readFileSync(process.argv[2], "utf8"));
-await db.exec("set session authorization counsel_runtime");
+
+// Each runtime pool logs in on its own, as on Cloud Run (agents/*.yaml `pool`).
+const LOGINS = { agent_support_drafter: "counsel_runtime_support" };
+const loginFor = role => LOGINS[role] ?? "counsel_runtime";
 
 const REFUSED = [
   ["agent_team_digest", "update work.tasks set owner_id = null", "42501"],
@@ -15,10 +18,13 @@ const REFUSED = [
   ["agent_support_drafter", "insert into support.ticket_messages (ticket_id, body) select id, 'x' from support.tickets", "42501"],
   ["agent_team_digest", "delete from counsel.audit_log", "42501"],
   ["agent_team_digest", "set role postgres", "42501"],
+  // The core pool's login cannot become the agent that reads customer tickets.
+  ["agent_team_digest", "set role agent_support_drafter", "42501"],
 ];
 
 let failed = 0;
 for (const [role, sql, code] of REFUSED) {
+  await db.exec(`reset session authorization; set session authorization ${loginFor(role)}`);
   await db.exec(`begin; set local role "${role}"`);
   let got = "allowed";
   try {
@@ -28,6 +34,6 @@ for (const [role, sql, code] of REFUSED) {
   }
   await db.exec("rollback");
   if (got !== code) failed += 1;
-  console.log(got === code ? "refused" : `WRONG (${got})`, role, sql);
+  console.log(got === code ? "refused" : `WRONG (${got})`, loginFor(role), role, sql);
 }
 process.exit(failed ? 1 : 0);

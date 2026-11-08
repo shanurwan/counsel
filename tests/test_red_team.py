@@ -175,15 +175,42 @@ def test_the_default_budget_ends_inside_the_lease_even_with_a_second_provider():
 # --- R3: the runtime login chooses which ticket an agent sees ------------------------------------
 
 
-def test_the_runtime_login_can_still_choose_any_ticket_known_boundary(admin, runtime_url):
-    """Pins today's boundary (docs/red-team.md, R3): RLS keeps the model to one ticket, but the
-    runtime login sets the scope itself. When R3's planned fix lands, this test must change."""
+def test_the_core_runtime_login_can_no_longer_become_the_support_drafter(runtime_url):
+    """R3, fixed: the drafter reads customer tickets, so it runs on its own pool's login.
+    The core runtime, which runs every other agent, cannot become it."""
+    with psycopg.connect(runtime_url) as conn:
+        assert conn.execute("select session_user").fetchone() == ("counsel_runtime",)
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            conn.execute("set role agent_support_drafter")
+
+
+def test_each_runtime_login_reaches_only_its_own_pools_agents(db, agents):
+    from counsel import audit
+    assert not [v for v in audit.run(db, agents) if v.check == "runtime login reaches another pool's agent"]
+    db.execute("grant agent_support_drafter to counsel_runtime")
+    found = [v for v in audit.run(db, agents) if v.check == "runtime login reaches another pool's agent"]
+    assert [(v.role, v.detail) for v in found] == [
+        ("counsel_runtime", "can become agent_support_drafter (pool login is counsel_runtime_support)")]
+
+
+def test_an_agent_that_reads_customer_data_cannot_join_the_shared_pool():
+    from counsel import registry
+    doc = {"name": "leaky", "description": "d", "owner": "support", "tier": "T2", "suite": "evals/x",
+           "capabilities": ["read_tickets", "draft_support_replies"], "triggers": {"events": ["ticket_opened"]}}
+    assert any("own pool" in p for p in registry.validate_entry(doc, "agents/leaky.yaml"))
+    assert not registry.validate_entry({**doc, "pool": "support"}, "agents/leaky.yaml")
+
+
+def test_the_support_login_still_chooses_the_drafters_ticket_known_boundary(admin, runtime_url):
+    """Pins what remains of R3 inside the support pool (docs/red-team.md): RLS keeps the model
+    to one ticket, but the support pool's login sets that scope itself. When scope is bound to a
+    leased job, this test must change."""
     ticket = str(uuid.uuid4())
     admin.execute("insert into support.customers values ('r3', 'R3') on conflict do nothing")
     admin.execute("insert into support.tickets (id, customer_id, subject, body) values (%s, 'r3', 's', 'b')",
                   (ticket,))
     try:
-        with psycopg.connect(runtime_url) as conn:
+        with psycopg.connect(psycopg.conninfo.make_conninfo(runtime_url, user="counsel_runtime_support")) as conn:
             conn.execute("set role agent_support_drafter")
             assert conn.execute("select count(*) from support.tickets").fetchone() == (0,)
             conn.execute("select set_config('counsel.ticket', %s, false)", (ticket,))

@@ -37,7 +37,9 @@ resource "google_cloud_run_v2_service" "counsel" {
 
       resources {
         limits = {
-          cpu    = "1"
+          # Half a vCPU: with the support pool's service at the same size, the
+          # worst case for both stays where one service at 1 vCPU was (docs/free-tier.md).
+          cpu    = "0.5"
           memory = "512Mi"
         }
         cpu_idle          = true # request-based billing
@@ -97,7 +99,7 @@ resource "google_cloud_run_v2_service_iam_member" "scheduler" {
   member   = google_service_account.scheduler.member
 }
 
-# The only Scheduler job (3 are free). Agent schedules live in agents/*.yaml;
+# The core pool's Scheduler job (3 are free; infra/pools.tf uses a second). Agent schedules live in agents/*.yaml;
 # the runtime decides what is due on each tick.
 resource "google_cloud_scheduler_job" "tick" {
   name             = "counsel-tick"

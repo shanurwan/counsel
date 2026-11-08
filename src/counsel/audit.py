@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import psycopg
 from psycopg import sql
 
-from .compiler import GROUP_ROLE, ORCHESTRATOR_ROLE, RUNTIME_ROLE
+from .compiler import GROUP_ROLE, ORCHESTRATOR_ROLE, RUNTIME_ROLE, logins
 from .registry import Agent
 
 COMMITMENT_COLUMNS = ("owner_id", "due_date", "status")
@@ -27,7 +27,7 @@ COMMITMENT_COLUMNS = ("owner_id", "due_date", "status")
 # are bound as parameters; nothing is formatted into SQL text.
 SUBJECTS = sql.SQL("""
   with recursive s(oid) as (
-    select oid from pg_roles where rolname in (%(group)s, %(runtime)s)
+    select oid from pg_roles where rolname = %(group)s or rolname = %(runtime)s or rolname like %(pool_logins)s
     union
     select am.member from pg_auth_members am
     join s on am.roleid = s.oid
@@ -50,6 +50,8 @@ MCP_CALLS = ("counsel.person_for_login(uuid)", "counsel.work_for_login(uuid)",
              "counsel.propose_note(uuid,text,text,text)", "counsel.proposal_for_login(uuid,uuid)")
 
 PARAMS = {"group": GROUP_ROLE, "runtime": RUNTIME_ROLE, "orchestrator": ORCHESTRATOR_ROLE,
+          # Further pools' logins: counsel_runtime_<pool> (registry.login_for).
+          "pool_logins": RUNTIME_ROLE.replace("_", "\\_") + "\\_%",
           "reader": READER_ROLE, "reader_allowed": [f"SELECT {t}" for t in READER_ALLOWED],
           "mcp": MCP_ROLE, "mcp_allowed": [f"SELECT {t}" for t in MCP_READS] + ["INSERT counsel.questions"]
           + [f"EXECUTE {f}" for f in MCP_CALLS]}
@@ -142,8 +144,8 @@ CHECKS: dict[str, str] = {
             ('superuser', r.rolsuper), ('createrole', r.rolcreaterole),
             ('createdb', r.rolcreatedb), ('bypassrls', r.rolbypassrls),
             ('replication', r.rolreplication),
-            ('login', r.rolcanlogin and r.rolname <> %(runtime)s),
-            ('inherit', r.rolinherit and r.rolname = %(runtime)s)
+            ('login', r.rolcanlogin and not (r.rolname = %(runtime)s or r.rolname like %(pool_logins)s)),
+            ('inherit', r.rolinherit and (r.rolname = %(runtime)s or r.rolname like %(pool_logins)s))
         ) a(attr, bad)
         where r.rolname in (select rolname from subjects) and a.bad
     """,
@@ -160,6 +162,7 @@ CHECKS: dict[str, str] = {
         select rolname, 'holds an agent membership'
         from subjects
         where rolname not in (%(group)s, %(runtime)s, %(orchestrator)s)
+          and rolname not like %(pool_logins)s
           and left(rolname, 6) <> 'agent_'
     """,
     "owns objects": """
@@ -190,6 +193,20 @@ CHECKS: dict[str, str] = {
 LIVE_AGENTS = """
     select rolname from subjects
     where rolname not in (%(group)s, %(runtime)s, %(orchestrator)s)
+      and rolname not like %(pool_logins)s
+"""
+
+# Which logins can become each agent role, through any chain of memberships.
+REACHED_BY = """
+    with recursive up(agent, oid) as (
+      select r.rolname, r.oid from pg_roles r where r.rolname = any(%(agent_roles)s)
+      union
+      select up.agent, am.member from pg_auth_members am
+      join up on am.roleid = up.oid
+      where am.inherit_option or am.set_option
+    )
+    select up.agent, l.rolname from up join pg_roles l on l.oid = up.oid
+    where l.rolcanlogin and not l.rolsuper
 """
 
 
@@ -221,6 +238,15 @@ def run(conn: psycopg.Connection, agents: list[Agent] | None = None) -> list[Vio
                 found.append(Violation("unregistered agent role", role, "not in agents/*.yaml"))
             for role in sorted({a.role for a in agents} - live):
                 found.append(Violation("registered agent missing", role, "run `counsel compile` and apply"))
+
+            # A runtime login reaches its own pool's agents and nothing else, so a
+            # compromised runtime holds one pool's rights (docs/red-team.md, R3).
+            expected = {a.role: a.login for a in agents}
+            cur.execute(REACHED_BY, {"agent_roles": sorted(expected)})
+            for role, login in sorted(set(cur.fetchall())):
+                if login != expected[role]:
+                    found.append(Violation("runtime login reaches another pool's agent", login,
+                                           f"can become {role} (pool login is {expected[role]})"))
     return found
 
 
@@ -230,7 +256,7 @@ def matrix(conn: psycopg.Connection, agents: list[Agent]) -> str:
             "read secrets", "post to customer"]
     rows = ["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     roles = [(a.role, a.tier) for a in sorted(agents, key=lambda a: a.name)]
-    roles += [(ORCHESTRATOR_ROLE, "platform"), (RUNTIME_ROLE, "platform")]
+    roles += [(ORCHESTRATOR_ROLE, "platform")] + [(login, "platform") for login in logins(agents)]
     with conn.cursor() as cur:
         for role, tier in roles:
             cur.execute(

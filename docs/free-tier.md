@@ -11,8 +11,8 @@ read on 2026-11-03. They are per billing account per month.
 | Service | Allowance | Counsel's use | How it stays inside |
 |---|---|---|---|
 | Cloud Run | 2M requests, 180k vCPU-s, 360k GiB-s, 1 GB egress from North America | one tick every 30 min plus events | worst case below; `us-central1` so egress to Supabase and NVIDIA is covered |
-| Cloud Scheduler | 3 jobs | 1 | one clock tick; agent schedules live in `agents/*.yaml` |
-| Secret Manager | 6 active versions | 3 | `database-url`, `nvidia-api-key`, `migrate-database-url` |
+| Cloud Scheduler | 3 jobs | 2 | one tick per runtime pool; agent schedules live in `agents/*.yaml` |
+| Secret Manager | 6 active versions | 5 | `database-url`, `support-database-url`, `mcp-database-url`, `nvidia-api-key`, `migrate-database-url` |
 | BigQuery | 10 GiB storage, 1 TiB queries | MBs | batch load jobs only, which are free; streaming inserts are billed and never used; partitions expire after 90 days |
 | Artifact Registry | 0.5 GB | ~0.2 GB | cleanup keeps the latest 2 images per repository |
 | Cloud Storage | 5 GB in US regions | KBs | Terraform state, guard source (deleted after 7 days) |
@@ -22,18 +22,20 @@ read on 2026-11-03. They are per billing account per month.
 
 ## Cloud Run worst case
 
-The runtime is capped so that even if every tick ran to its timeout, it would
-stay inside the allowance:
+The runtime runs as two services, one per pool (`infra/run.tf`, `infra/pools.tf`),
+each ticking every 30 minutes. They are capped so that even if every tick of both ran
+to its timeout, they would stay inside the allowance:
 
 ```
-ticks/month        = 48/day × 30            = 1,440
-vCPU-seconds       = 1,440 × 120 s × 1 vCPU = 172,800   (free: 180,000)
-GiB-seconds        = 1,440 × 120 s × 0.5    =  86,400   (free: 360,000)
+ticks/month        = 2 services × 48/day × 30           = 2,880
+vCPU-seconds       = 2,880 × 120 s × 0.5 vCPU           = 172,800   (free: 180,000)
+GiB-seconds        = 2,880 × 120 s × 0.5 GiB            = 172,800   (free: 360,000)
 ```
 
-Settings that make this hold: `max_instances = 1`, `timeout = 120s`,
-`cpu = 1`, `memory = 512Mi`, request-based billing, invocation by the
-scheduler's service account only.
+Splitting the runtime did not raise the worst case: two services at half a vCPU cost
+what one at a full vCPU did. Settings that make this hold: `max_instances = 1`,
+`timeout = 120s`, `cpu = 0.5`, `memory = 512Mi`, request-based billing, invocation by
+the scheduler's service account only.
 
 The worst case holds as the platform grows, because it is set by the request timeout,
 not by what a tick does. A tick now also polls GitHub and loads finished runs, and the
@@ -43,7 +45,7 @@ Everything else added runs outside GCP or costs nothing there: GitHub reads are 
 `nudge` and `drift_watcher` make no model calls. A second model provider is off
 unless a key is set.
 
-The hosted MCP server (`infra/mcp.tf`) is a second Cloud Run service on the same
+The hosted MCP server (`infra/mcp.tf`) is a third Cloud Run service on the same
 free allowance: scale to zero, one instance, a 30 s timeout and CPU only during
 requests, and each call is a few milliseconds of SQL with no model call. People who
 sign in to it count as Supabase monthly active users (50,000 on Free). The local

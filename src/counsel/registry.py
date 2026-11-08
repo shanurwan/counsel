@@ -39,7 +39,19 @@ REQUIRED = ("name", "description", "owner", "tier", "capabilities", "triggers", 
 # minutes_per_output: the owner's estimate of how long a person takes to do one
 # output by hand. The value ledger counts it only for outputs a person accepted.
 # watches: public GitHub repositories whose new issues trigger this agent.
-OPTIONAL = ("budget_usd", "cache_hours", "minutes_per_output", "watches")
+# pool: the runtime that runs this agent, each with its own database login and
+# Cloud Run service. A login can become only its own pool's agents, so a
+# compromised runtime holds one pool's rights, not every agent's (docs/red-team.md, R3).
+OPTIONAL = ("budget_usd", "cache_hours", "minutes_per_output", "watches", "pool")
+CORE_POOL = "core"
+POOL_RE = re.compile(r"^[a-z][a-z0-9]{1,20}$")
+# Customer data stays out of the shared pool: an agent that reads it runs on its own login.
+CUSTOMER_DATA = frozenset({"read_tickets", "draft_support_replies"})
+
+
+def login_for(pool: str) -> str:
+    """The database login a pool's runtime connects as."""
+    return "counsel_runtime" if pool == CORE_POOL else f"counsel_runtime_{pool}"
 ALLOWED = set(REQUIRED) | set(OPTIONAL)
 TRIGGER_KEYS = {"schedule", "events"}
 NAME_RE = re.compile(r"^[a-z][a-z0-9_]{2,40}$")
@@ -68,10 +80,15 @@ class Agent:
     cache_hours: int | None = None
     minutes_per_output: int | None = None
     watches: tuple[str, ...] = ()
+    pool: str = CORE_POOL
 
     @property
     def role(self) -> str:
         return f"agent_{self.name}"
+
+    @property
+    def login(self) -> str:
+        return login_for(self.pool)
 
 
 def _tier_index(tier: str) -> int:
@@ -138,6 +155,13 @@ def validate_entry(doc: object, source: str) -> list[str]:
             problems.append(f"{where}: cache_hours is only allowed at T0 (higher tiers read "
                             "per-person or per-customer data)")
 
+    pool = doc.get("pool", CORE_POOL)
+    if not (isinstance(pool, str) and POOL_RE.match(pool)):
+        problems.append(f"{where}: pool must match {POOL_RE.pattern}")
+    elif pool == CORE_POOL and CUSTOMER_DATA & set(known):
+        problems.append(f"{where}: {', '.join(sorted(CUSTOMER_DATA & set(known)))} reads customer data, "
+                        "so the agent needs its own pool, not the shared core runtime")
+
     watches = doc.get("watches")
     if watches is not None and not (isinstance(watches, list) and all(
             isinstance(r, str) and REPO_RE.match(r) for r in watches)):
@@ -184,6 +208,7 @@ def load(directory: Path) -> list[Agent]:
             cache_hours=doc.get("cache_hours"),
             minutes_per_output=doc.get("minutes_per_output"),
             watches=tuple(doc.get("watches") or ()),
+            pool=doc.get("pool", CORE_POOL),
         ))
 
     names = [a.name for a in agents]

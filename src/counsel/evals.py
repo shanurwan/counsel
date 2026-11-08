@@ -38,6 +38,7 @@ from psycopg import sql
 from . import registry, review
 from .behaviors import ACTION_FLAG, IMPLEMENTATIONS, NOT_COVERED, SUPPORT_NOT_COVERED
 from .cli import migrate
+from .compiler import logins
 from .model import Completion, ModelError, NvidiaModel, RecordingModel, ReplayModel
 from .runtime import Worker
 
@@ -168,8 +169,9 @@ def build_template(admin_url: str) -> None:
     url = psycopg.conninfo.make_conninfo(admin_url, dbname=TEMPLATE_DB)
     with psycopg.connect(url) as conn:
         migrate(conn, out=lambda _line: None)
-        conn.execute(sql.SQL("alter role {} password {}").format(
-            sql.Identifier("counsel_runtime"), sql.Literal(EVAL_PASSWORD)))
+        for login in logins(registry.load(ROOT / "agents")):
+            conn.execute(sql.SQL("alter role {} password {}").format(
+                sql.Identifier(login), sql.Literal(EVAL_PASSWORD)))
         conn.execute(SEED.read_text(encoding="utf-8"))
         # Each case brings its own updates; the seed's are dated by the clock, which would change prompts.
         conn.execute("delete from work.task_updates")
@@ -468,11 +470,12 @@ def run_case(admin_url: str, agent: registry.Agent, agents: dict, case: dict, mo
     with psycopg.connect(url, autocommit=True) as admin:
         before = _commitments(admin)
         context = _prepare(admin, agent.name, case)
-        runtime = psycopg.conninfo.make_conninfo(url, user="counsel_runtime", password=EVAL_PASSWORD)
+        # The agent's own pool login, as its Cloud Run service connects.
+        runtime = psycopg.conninfo.make_conninfo(url, user=agent.login, password=EVAL_PASSWORD)
         with psycopg.connect(runtime, autocommit=True) as rconn:
             # Schedules off: a tick would otherwise enqueue whatever digest is due at
             # the real wall-clock hour, and the case would depend on when it ran.
-            unscheduled = {name: replace(a, schedule=None) for name, a in agents.items()}
+            unscheduled = {name: replace(a, schedule=None) for name, a in agents.items() if a.pool == agent.pool}
             worker = Worker(rconn, unscheduled, {agent.name: IMPLEMENTATIONS[agent.name]}, counting,
                             worker_id="eval")
             worker.tick(budget_s=300)

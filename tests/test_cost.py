@@ -166,9 +166,11 @@ def test_the_report_finds_repeats_and_refusals_and_says_what_to_do(support_admin
     add_ticket(support_admin, OWN, "tidewater", "Too many connections", "Is the pooler on?")
     obedient = UsageModel(text='{"tool": "select", "args": {"table": "support.integration_tokens"}}')
     uncached = [replace(a, cache_hours=None) for a in agents]
-    worker = make_worker(obedient, {"ask_handbook": ask_handbook, "support_drafter": support_drafter})
-    worker.agents = {a.name: a for a in uncached}
-    worker.tick()
+    # Two pools, two workers: the handbook runs on the core login, the drafter on its own.
+    for implementations in ({"ask_handbook": ask_handbook}, {"support_drafter": support_drafter}):
+        worker = make_worker(obedient, implementations)
+        worker.agents = {a.name: a for a in uncached if a.name in worker.agents}
+        worker.tick()
 
     report = cost.build(support_admin, uncached, NOW - timedelta(days=1), NOW + timedelta(days=1))
     kinds = {f["kind"]: f for f in report["findings"]}

@@ -182,9 +182,12 @@ jobs:
         run: |
           digest=$(gcloud artifacts docker images describe "${IMAGE}:${GITHUB_SHA}" --format='value(image_summary.digest)')
           gcloud run services update counsel --region "$REGION" --image "${IMAGE}@${digest}" --quiet
-          # The hosted MCP server runs the same image, once infra/mcp.tf has created it.
-          if gcloud run services describe counsel-mcp --region "$REGION" --format='value(name)' >/dev/null 2>&1; then
-            gcloud run services update counsel-mcp --region "$REGION" --image "${IMAGE}@${digest}" --quiet
-          fi
+          # The support pool and the hosted MCP server run the same image, once
+          # infra/pools.tf and infra/mcp.tf have created them.
+          for service in counsel-support counsel-mcp; do
+            if gcloud run services describe "$service" --region "$REGION" --format='value(name)' >/dev/null 2>&1; then
+              gcloud run services update "$service" --region "$REGION" --image "${IMAGE}@${digest}" --quiet
+            fi
+          done
           gcloud run services describe counsel --region "$REGION" \
             --format='value(status.latestReadyRevisionName,status.traffic[0].percent)'

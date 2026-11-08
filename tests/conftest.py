@@ -8,6 +8,7 @@ import pytest
 
 from counsel import registry
 from counsel.cli import migrate
+from counsel.compiler import logins
 
 ROOT = Path(__file__).resolve().parents[1]
 ADMIN_URL = os.environ.get("COUNSEL_TEST_ADMIN_URL")
@@ -49,7 +50,9 @@ def database_url():
               ('expenses.md', 'Expenses: submit receipts within 30 days. Meals while travelling '
                               'are covered up to 40 USD per day.');
         """)
-        conn.execute("alter role counsel_runtime password 'counsel-test-only'")
+        # Every runtime pool's login, as each Cloud Run service connects.
+        for login in logins(registry.load(ROOT / "agents")):
+            conn.execute(f"alter role {login} password 'counsel-test-only'")
         conn.commit()
     return url
 

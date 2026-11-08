@@ -20,7 +20,17 @@ alter role counsel_runtime noinherit nocreatedb nocreaterole nobypassrls;
 -- 0003_runtime.sql and audited like an agent.
 grant counsel_orchestrator to counsel_runtime;
 
--- ask_handbook (T0) owner: people-ops
+-- Runtime pool 'support': its own login, password set at deploy time.
+do $$
+begin
+  if not exists (select from pg_roles where rolname = 'counsel_runtime_support') then
+    create role counsel_runtime_support login noinherit;
+  end if;
+end $$;
+alter role counsel_runtime_support noinherit nocreatedb nocreaterole nobypassrls;
+grant counsel_orchestrator to counsel_runtime_support;
+
+-- ask_handbook (T0, pool core) owner: people-ops
 -- Answers questions from the company handbook with citations, and says so when the handbook does not cover the question.
 do $$
 begin
@@ -31,13 +41,14 @@ end $$;
 alter role agent_ask_handbook nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_ask_handbook;
 grant agent_ask_handbook to counsel_runtime;
+revoke agent_ask_handbook from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_ask_handbook;
 revoke all on schema work, kb, counsel, support from agent_ask_handbook;
 grant usage on schema kb to agent_ask_handbook;
 grant select on kb.documents to agent_ask_handbook;
 grant insert (id, run_id, question, body) on counsel.answers to agent_ask_handbook;
 
--- drift_watcher (T1) owner: platform
+-- drift_watcher (T1, pool core) owner: platform
 -- Watches the platform itself: failing suites, unused agents, budget overruns and registry drift. Drafts a fix issue for a person to file.
 do $$
 begin
@@ -48,12 +59,13 @@ end $$;
 alter role agent_drift_watcher nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_drift_watcher;
 grant agent_drift_watcher to counsel_runtime;
+revoke agent_drift_watcher from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_drift_watcher;
 revoke all on schema work, kb, counsel, support from agent_drift_watcher;
 grant select on counsel.platform_findings, counsel.raised_fixes to agent_drift_watcher;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_drift_watcher;
 
--- exec_weekly (T1) owner: ops-lead
+-- exec_weekly (T1, pool core) owner: ops-lead
 -- Writes the Monday leadership brief from task movement, blockers and slipped dates across all teams. A person reads and publishes it.
 do $$
 begin
@@ -64,6 +76,7 @@ end $$;
 alter role agent_exec_weekly nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_exec_weekly;
 grant agent_exec_weekly to counsel_runtime;
+revoke agent_exec_weekly from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_exec_weekly;
 revoke all on schema work, kb, counsel, support from agent_exec_weekly;
 grant usage on schema work to agent_exec_weekly;
@@ -71,7 +84,7 @@ grant select on work.teams, work.people, work.tasks to agent_exec_weekly;
 grant select on work.task_updates to agent_exec_weekly;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_exec_weekly;
 
--- issue_triage (T1) owner: platform
+-- issue_triage (T1, pool core) owner: platform
 -- Reads new issues and drafts a triage note: likely team, duplicates, missing information. It suggests an owner in the draft; a person assigns.
 do $$
 begin
@@ -82,13 +95,14 @@ end $$;
 alter role agent_issue_triage nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_issue_triage;
 grant agent_issue_triage to counsel_runtime;
+revoke agent_issue_triage from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_issue_triage;
 revoke all on schema work, kb, counsel, support from agent_issue_triage;
 grant usage on schema work to agent_issue_triage;
 grant select on work.issues, work.teams to agent_issue_triage;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_issue_triage;
 
--- nudge (T3) owner: ops-lead
+-- nudge (T3, pool core) owner: ops-lead
 -- Sends one well-timed message when a task has been silent too long, inside the recipient's working hours and weekly interruption budget. It gives context before it asks for anything.
 do $$
 begin
@@ -99,6 +113,7 @@ end $$;
 alter role agent_nudge nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_nudge;
 grant agent_nudge to counsel_runtime;
+revoke agent_nudge from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_nudge;
 revoke all on schema work, kb, counsel, support from agent_nudge;
 grant usage on schema work to agent_nudge;
@@ -107,7 +122,7 @@ grant select on work.task_updates to agent_nudge;
 grant insert (run_id, recipient_id, body, task_ids) on counsel.outbound_messages to agent_nudge;
 grant select (recipient_id, task_ids, created_at, cancelled_at) on counsel.outbound_messages to agent_nudge;
 
--- standup_carrier (T2) owner: platform
+-- standup_carrier (T2, pool core) owner: platform
 -- Carries a person's own standup text into the task it belongs to, only after that person approves the exact text. It cannot change who owns the task, when it is due, or its status.
 do $$
 begin
@@ -118,6 +133,7 @@ end $$;
 alter role agent_standup_carrier nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_standup_carrier;
 grant agent_standup_carrier to counsel_runtime;
+revoke agent_standup_carrier from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_standup_carrier;
 revoke all on schema work, kb, counsel, support from agent_standup_carrier;
 grant usage on schema work to agent_standup_carrier;
@@ -126,7 +142,7 @@ grant insert (task_id, body, consent_id, run_id) on work.task_updates to agent_s
 grant select on work.teams, work.people, work.tasks to agent_standup_carrier;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_standup_carrier;
 
--- support_drafter (T2) owner: support
+-- support_drafter (T2, pool support) owner: support
 -- Drafts a reply to a new support ticket from the product docs, with citations. A support engineer edits and sends it; the agent cannot post to the customer's thread and sees only the ticket it was started for.
 do $$
 begin
@@ -136,7 +152,8 @@ begin
 end $$;
 alter role agent_support_drafter nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_support_drafter;
-grant agent_support_drafter to counsel_runtime;
+grant agent_support_drafter to counsel_runtime_support;
+revoke agent_support_drafter from counsel_runtime;
 revoke all on all tables in schema work, kb, counsel, support from agent_support_drafter;
 revoke all on schema work, kb, counsel, support from agent_support_drafter;
 grant insert (id, run_id, kind, body) on counsel.drafts to agent_support_drafter;
@@ -146,7 +163,7 @@ grant usage on schema support to agent_support_drafter;
 grant select (id, customer_id, subject, body, created_at) on support.tickets to agent_support_drafter;
 grant select (id, ticket_id, author, body, created_at) on support.ticket_messages to agent_support_drafter;
 
--- team_digest (T1) owner: platform
+-- team_digest (T1, pool core) owner: platform
 -- Daily digest per team in the team's own time zone: what moved, what is blocked, what is waiting on whom. Drafted for a person to publish.
 do $$
 begin
@@ -157,6 +174,7 @@ end $$;
 alter role agent_team_digest nologin nocreatedb nocreaterole nobypassrls;
 grant counsel_agents to agent_team_digest;
 grant agent_team_digest to counsel_runtime;
+revoke agent_team_digest from counsel_runtime_support;
 revoke all on all tables in schema work, kb, counsel, support from agent_team_digest;
 revoke all on schema work, kb, counsel, support from agent_team_digest;
 grant usage on schema work to agent_team_digest;

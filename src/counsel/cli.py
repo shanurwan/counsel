@@ -35,7 +35,9 @@ def build_worker(conn):
     from .behaviors import IMPLEMENTATIONS
     from .runtime import Worker
 
-    agents = {a.name: a for a in _load()}
+    # Each Cloud Run service runs one pool, logged in as that pool's login.
+    pool = os.environ.get("COUNSEL_RUNTIME_POOL", registry.CORE_POOL)
+    agents = {a.name: a for a in _load() if a.pool == pool}
     return Worker(conn, agents, IMPLEMENTATIONS, build_model())
 
 

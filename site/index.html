@@ -305,7 +305,7 @@ footer { margin-top: 112px; padding: 56px 0 48px; border-top: 1px solid var(--li
 
 <div class="wrap stage" id="try">
   <div class="console" id="console">
-    <div class="chrome" aria-hidden="true"><b></b><b></b><b></b><span>psql · counsel_runtime</span></div>
+    <div class="chrome" aria-hidden="true"><b></b><b></b><b></b><span id="login">psql · counsel_runtime</span></div>
     <ul class="attacks" id="attacks" aria-label="Attacks"></ul>
     <div class="bench">
       <div class="bar">
@@ -538,6 +538,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 const PGLITE = "https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.3.14/dist/index.js";
 const LOGIN = "counsel_runtime";
+// Each runtime pool logs in on its own (agents/*.yaml `pool`): the drafter reads customer tickets.
+const LOGINS = { agent_support_drafter: "counsel_runtime_support" };
+const loginFor = role => LOGINS[role] ?? LOGIN;
 const PLANTED_TICKET = "40000000-0000-0000-0000-000000000001";
 const ROLES = ["team_digest", "exec_weekly", "support_drafter", "issue_triage", "standup_carrier", "ask_handbook", "nudge", "drift_watcher", "misgranted"].map(a => `agent_${a}`);
 
@@ -560,6 +563,9 @@ const ATTACKS = [
   { label: "Erase the audit log", role: "agent_team_digest",
     sql: "delete from counsel.audit_log;",
     why: "Append-only, for the table's owner too. Agents can add a line and nothing else." },
+  { label: "Switch to the agent that reads tickets", role: "agent_team_digest",
+    sql: "set role agent_support_drafter;\nselect subject from support.tickets;",
+    why: "Each runtime pool has its own login. The one that runs the other agents cannot become the one that reads customer tickets." },
   { label: "Become the database admin", role: "agent_team_digest",
     sql: "set role postgres;",
     why: "The login behind every agent holds nothing of its own, and cannot become anyone but an agent." },
@@ -620,6 +626,10 @@ async function start() {
 async function execute(role, sql) {
   if (/session[\s_]*authorization/i.test(sql)) return { escaped: true, stopped: true };
   let result = {};
+  const login = loginFor(role);
+  // The agent's own pool login, as its Cloud Run service connects.
+  await db.exec(`reset session authorization; set session authorization ${login}`);
+  $("login").textContent = `psql · ${login}`;
   await db.exec("begin");
   await db.exec(`set local role "${role}"; set local statement_timeout = '3s'`);
   if (role === "agent_support_drafter") {
@@ -633,7 +643,7 @@ async function execute(role, sql) {
   }
   await db.exec("rollback").catch(() => {});
   const who = (await db.query("select session_user as s")).rows[0].s;
-  return who === LOGIN ? result : { ...result, escaped: true };
+  return who === login ? result : { ...result, escaped: true };
 }
 
 function renderOutcome(a, role, r) {

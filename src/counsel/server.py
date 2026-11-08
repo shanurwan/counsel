@@ -19,6 +19,7 @@ import psycopg
 from . import github, warehouse
 from .cli import build_worker
 from .log import log
+from .registry import CORE_POOL
 from .runtime import STOPPING
 
 WAREHOUSE_CUTOFF_S = 85.0  # leave the export room inside Cloud Run's 120 s request timeout
@@ -49,9 +50,12 @@ class Handler(BaseHTTPRequestHandler):
                                  connect_timeout=10) as conn:
                 started = time.monotonic()
                 worker = build_worker(conn)
-                synced = github.sync_all(conn, worker.agents, datetime.now(timezone.utc))
+                # GitHub sync and the warehouse export belong to the core pool's service;
+                # another pool's service only runs its own agents.
+                core = os.environ.get("COUNSEL_RUNTIME_POOL", CORE_POOL) == CORE_POOL
+                synced = github.sync_all(conn, worker.agents, datetime.now(timezone.utc)) if core else None
                 summary = {**worker.tick(), "synced": synced}
-                if warehouse.on_cloud_run() and time.monotonic() - started < WAREHOUSE_CUTOFF_S:
+                if core and warehouse.on_cloud_run() and time.monotonic() - started < WAREHOUSE_CUTOFF_S:
                     summary["warehouse"] = _export(conn)
             self._send(200, summary)
         except Exception as e:  # noqa: BLE001 - report, let the scheduler retry

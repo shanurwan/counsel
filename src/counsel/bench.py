@@ -21,6 +21,7 @@ from psycopg.types.json import Json
 from . import audit, registry
 from .behaviors import parse_call, support_drafter
 from .cli import migrate
+from .compiler import RUNTIME_ROLE, logins
 from .model import Completion, ModelError, NvidiaModel, RecordingModel, ReplayModel
 from .runtime import Worker
 from .tools import execute as execute_tool
@@ -400,9 +401,10 @@ def fresh(admin_url: str) -> str:
     try:
         with psycopg.connect(url) as conn:
             migrate(conn, out=lambda _line: None)
-            conn.execute(
-                sql.SQL("alter role {} password {}").format(
-                    sql.Identifier("counsel_runtime"), sql.Literal(BENCH_PASSWORD)))
+            for login in logins(registry.load(AGENTS)):
+                conn.execute(
+                    sql.SQL("alter role {} password {}").format(
+                        sql.Identifier(login), sql.Literal(BENCH_PASSWORD)))
             conn.execute(SEED.read_text(encoding="utf-8"))
             conn.commit()
     except Exception:
@@ -417,8 +419,14 @@ def drop_db(admin_url: str) -> None:
             sql.Identifier(BENCH_DB)))
 
 
-def runtime_url(url: str) -> str:
-    return psycopg.conninfo.make_conninfo(url, user="counsel_runtime", password=BENCH_PASSWORD)
+def runtime_url(url: str, login: str = RUNTIME_ROLE) -> str:
+    return psycopg.conninfo.make_conninfo(url, user=login, password=BENCH_PASSWORD)
+
+
+def drafter_pool(agents: list[registry.Agent]) -> tuple[str, list[registry.Agent]]:
+    """The support drafter's runtime login, and the agents that login can become."""
+    pool = next(a.pool for a in agents if a.role == DRAFTER)
+    return registry.login_for(pool), [a for a in agents if a.pool == pool]
 
 
 def privilege_audit(url: str) -> list[str]:
@@ -469,10 +477,10 @@ def _denial(conn, run_id: str | None) -> tuple[str | None, str | None]:
 
 
 def readable_rows(conn, agents: list[registry.Agent], ticket_ids: list[str]) -> tuple[int, int, dict]:
-    """What the runtime login can read by becoming each agent. Counts, never values."""
+    """What a runtime login can read by becoming each of its pool's agents. Counts, never values."""
     who = conn.execute("select session_user").fetchone()[0]
-    if who != "counsel_runtime":
-        raise RuntimeError(f"read probe must run as counsel_runtime, not {who}")
+    if who not in {a.login for a in agents}:
+        raise RuntimeError(f"read probe must run as the agents' runtime login, not {who}")
     best = {f"{schema}.{table}": 0 for schema, table in READABLE}
     secrets = 0
 
@@ -513,9 +521,9 @@ def _measure(url: str, before: dict, *, secret_rows: int = 0) -> dict:
 
 
 def run_worker(url: str, model) -> None:
-    agents = {agent.name: agent for agent in registry.load(AGENTS)}
-    with psycopg.connect(runtime_url(url), autocommit=True) as conn:
-        Worker(conn, agents, {"support_drafter": support_drafter}, model).tick()
+    login, pool = drafter_pool(registry.load(AGENTS))
+    with psycopg.connect(runtime_url(url, login), autocommit=True) as conn:
+        Worker(conn, {a.name: a for a in pool}, {"support_drafter": support_drafter}, model).tick()
 
 
 def attack_counsel(url: str, case: Case) -> dict:
@@ -546,9 +554,10 @@ def attack_counsel(url: str, case: Case) -> dict:
     detail = None
     secret_rows = 0
     if case.probe_reads:
-        agents = registry.load(AGENTS)
-        with psycopg.connect(runtime_url(url), autocommit=True) as conn:
-            reads, secret_rows, detail = readable_rows(conn, agents, ticket_ids)
+        # The stolen credential is the support integration's: the drafter's pool login.
+        login, pool = drafter_pool(registry.load(AGENTS))
+        with psycopg.connect(runtime_url(url, login), autocommit=True) as conn:
+            reads, secret_rows, detail = readable_rows(conn, pool, ticket_ids)
 
     harm = _measure(url, before, secret_rows=secret_rows)
     with psycopg.connect(url, autocommit=True) as conn:

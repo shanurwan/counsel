@@ -54,7 +54,7 @@
     "commitments_changed": 0,
     "control_must": "secrets_visible",
     "other_customers_exposed": 0,
-    "reads": 33,
+    "reads": 10,
     "replies_sent": 0,
     "rows_deleted": 0,
     "secrets_visible": 0,

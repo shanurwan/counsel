@@ -319,8 +319,9 @@ Real faults in the running system, how each was found, and what changed:
 
 The same exercise pointed at the parts I trust: the runtime, its time limits and
 its deploys. A worker kept writing after its lease expired, twice in production,
-and a model call could be paid for twice; both are fixed and tested. The runtime
-login can still choose which ticket an agent sees, which is planned:
+and a model call could be paid for twice; both are fixed and tested. One runtime
+login could become every agent; the agent that reads customer tickets now runs on
+its own login and service, and the audit fails if a login reaches outside its pool:
 [docs/red-team.md](docs/red-team.md).
 
 ## Security pipeline

@@ -9,4 +9,6 @@ capabilities: [read_handbook, read_tickets, draft_support_replies]
 triggers:
   events: [ticket_opened]
 suite: evals/support_drafter
+# Reads customer tickets, so it runs on its own login and service, away from the other agents.
+pool: support
 minutes_per_output: 12
