@@ -42,7 +42,7 @@ further than the document is welcome.
 ## How the repository is kept
 
 Every push runs gitleaks over the full history, bandit, pip-audit, checkov, zizmor and
-OpenSSF Scorecard; every GitHub Action is pinned by commit; Dependabot proposes updates.
+OpenSSF Scorecard and CodeQL; every GitHub Action is pinned by commit; Dependabot proposes updates.
 Deployed images carry signed build provenance and an SPDX SBOM:
 
 ```sh

@@ -354,7 +354,7 @@ Every push runs, alongside the commitment checks:
 - **zizmor** on the workflows themselves; every action is pinned to a commit SHA
   and the Postgres service image to a digest
 
-- **OpenSSF Scorecard** on every push to main, published to scorecard.dev
+- **OpenSSF Scorecard** and **CodeQL** (Python and the workflows) on every push to main
 - **Build provenance and an SPDX SBOM** for every deployed image, signed through
   Sigstore and verifiable with `gh attestation verify`
 
