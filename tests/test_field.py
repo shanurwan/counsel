@@ -71,3 +71,12 @@ def test_a_shadow_mode_draft_can_never_be_posted(monkeypatch):
     # An owner who said yes is added by name, nobody else.
     monkeypatch.setenv("COUNSEL_PUBLISH_OWNERS", "shanurwan, some-maintainer")
     assert cli.may_post("Some-Maintainer/tool") and not cli.may_post("supabase/auth")
+
+
+def test_the_published_note_itself_is_not_a_maintainer_reply():
+    note = "The issue asks for hashed pip installs. Area: CI. Missing: the workflow paths. No duplicate found."
+    scored = field.score({**ISSUE, "note": note, "review": "published"}, github(comments=[
+        {"author_association": "OWNER", "created_at": "2026-11-09T01:00:00Z", "body": note}]))
+    assert not scored.maintainer_replied and scored.review == "published"
+    assert field.summarise([scored])["owner_review"] == {"reviewed": 1, "published": 1, "rejected": 0,
+                                                         "repos": ["acme/widgets"]}

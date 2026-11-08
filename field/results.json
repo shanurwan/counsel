@@ -1,0 +1,112 @@
+{
+  "since": "2026-11-08T00:00:00+00:00",
+  "until": "2026-11-08T16:30:14.478846+00:00",
+  "summary": {
+    "triaged": 4,
+    "scored": 4,
+    "maintainers_acted": 0,
+    "owner_review": {
+      "reviewed": 4,
+      "published": 4,
+      "rejected": 0,
+      "repos": [
+        "shanurwan/counsel"
+      ]
+    },
+    "duplicates": {
+      "claimed": 0,
+      "confirmed": 0,
+      "maintainers_closed_as_duplicate": 0,
+      "missed": 0
+    },
+    "missing_info": {
+      "maintainer_asked": 0,
+      "draft_flagged": 2,
+      "both": 0,
+      "draft_only": 0,
+      "maintainer_only": 0
+    }
+  },
+  "issues": [
+    {
+      "repo": "shanurwan/counsel",
+      "number": 7,
+      "title": "Bind the support drafter's ticket scope to a leased job",
+      "url": "https://github.com/shanurwan/counsel/issues/7",
+      "note": "The issue proposes binding the support drafter's ticket access to an active, unexpired job via row-level security on `support.tickets` and `support.ticket_messages` to prevent a compromised runtime from reading all tickets. This belongs to the security and database access control area. The issue references a specific test (`test_the_support_login_still_chooses_the_drafters_ticket_known_boundary`) that must be updated, but lacks implementation details or migration strategy. No duplicate found.",
+      "drafted_at": "2026-11-08 16:01:36.360085+00:00",
+      "claimed_duplicates": [],
+      "says_missing": false,
+      "labels": [],
+      "state": "open",
+      "state_reason": null,
+      "marked_duplicate_of": [],
+      "maintainer_replied": false,
+      "maintainer_asked_for_more": false,
+      "first_reply_hours": null,
+      "review": "published",
+      "error": null,
+      "truly_duplicate": false
+    },
+    {
+      "repo": "shanurwan/counsel",
+      "number": 8,
+      "title": "Pin pip installs in the workflows with hashes",
+      "url": "https://github.com/shanurwan/counsel/issues/8",
+      "note": "The issue reports that CI workflows install Python tools (`checkov`, `zizmor`, and the project itself via `pip install -e .`) without pinned hashes, causing a low OpenSSF Scorecard rating for Pinned Dependencies. Area: CI/CD supply chain security. Missing information: specific workflow file paths and whether a `requirements.txt` with hashes already exists. No duplicate found.",
+      "drafted_at": "2026-11-08 16:01:27.250085+00:00",
+      "claimed_duplicates": [],
+      "says_missing": true,
+      "labels": [],
+      "state": "open",
+      "state_reason": null,
+      "marked_duplicate_of": [],
+      "maintainer_replied": false,
+      "maintainer_asked_for_more": false,
+      "first_reply_hours": null,
+      "review": "published",
+      "error": null,
+      "truly_duplicate": false
+    },
+    {
+      "repo": "shanurwan/counsel",
+      "number": 9,
+      "title": "Collect a second person's labels for the judge",
+      "url": "https://github.com/shanurwan/counsel/issues/9",
+      "note": "The issue requests adding support for a second human labeller to record verdicts alongside the existing calibration data and report inter-annotator agreement. Area: evaluation/calibration tooling. Missing information: specific file format or CLI changes desired for the new labels. No duplicate found.",
+      "drafted_at": "2026-11-08 16:01:17.694405+00:00",
+      "claimed_duplicates": [],
+      "says_missing": true,
+      "labels": [],
+      "state": "open",
+      "state_reason": null,
+      "marked_duplicate_of": [],
+      "maintainer_replied": false,
+      "maintainer_asked_for_more": false,
+      "first_reply_hours": null,
+      "review": "published",
+      "error": null,
+      "truly_duplicate": false
+    },
+    {
+      "repo": "shanurwan/counsel",
+      "number": 10,
+      "title": "Version the steps of runs in flight",
+      "url": "https://github.com/shanurwan/counsel/issues/10",
+      "note": "The issue reports that resuming a run after a deploy can replay incorrect outputs if an agent's steps were added, removed, or reordered. It belongs to the run resumption and versioning area. No information appears missing; the problem and a solution pattern (versioning per agent implementation) are clearly described. No duplicate found.",
+      "drafted_at": "2026-11-08 16:01:08.657963+00:00",
+      "claimed_duplicates": [],
+      "says_missing": false,
+      "labels": [],
+      "state": "open",
+      "state_reason": null,
+      "marked_duplicate_of": [],
+      "maintainer_replied": false,
+      "maintainer_asked_for_more": false,
+      "first_reply_hours": null,
+      "review": "published",
+      "error": null,
+      "truly_duplicate": false
+    }
+  ]
+}
