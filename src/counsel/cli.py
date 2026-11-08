@@ -4,6 +4,7 @@ report | maturity | trace | simulate | challenge | new | inbox | link-login"""
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -53,6 +54,24 @@ def _load() -> list[registry.Agent]:
 def cmd_validate(args: argparse.Namespace) -> int:
     agents = _load()
     print(f"ok: {len(agents)} agents")
+    return 0
+
+
+def cmd_field(args: argparse.Namespace) -> int:
+    from datetime import datetime, timezone
+
+    import psycopg
+
+    from . import field
+
+    dsn = args.dsn or os.environ.get("COUNSEL_DATABASE_URL")
+    if not dsn:
+        print("set COUNSEL_DATABASE_URL or pass --dsn", file=sys.stderr)
+        return 2
+    since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
+    with psycopg.connect(dsn) as conn:
+        summary = field.run(conn, since, ROOT / "field", ROOT / "docs" / "field-week.md")
+    print(json.dumps(summary, indent=2))
     return 0
 
 
@@ -293,13 +312,24 @@ def cmd_review(args: argparse.Namespace) -> int:
     return 0
 
 
+def may_post(repo: str) -> bool:
+    """Only repositories whose owner agreed. By default, the author's own."""
+    owners = {o.strip().lower() for o in os.environ.get("COUNSEL_PUBLISH_OWNERS", "shanurwan").split(",") if o.strip()}
+    return repo.split("/", 1)[0].lower() in owners
+
+
 def _deliver(kind: str, text: str) -> None:
     """Post what you just approved to GitHub, with your token. Nothing else ever writes there."""
-    from . import github
+    from . import github, review
 
     client = github.GitHub(token=os.environ.get("GH_TOKEN"))
     if kind.startswith("issue_triage:"):
         repo, number = kind.split(":", 1)[1].rsplit("#", 1)
+        if not may_post(repo):
+            # Field-run repositories are read in shadow mode: their drafts are never posted.
+            # Raising here rolls the publish back, so the draft stays pending.
+            raise review.ReviewError(f"{repo} is watched in shadow mode; Counsel never posts there. "
+                                     "Set COUNSEL_PUBLISH_OWNERS to allow an owner who has said yes.")
         print("posted", client.comment(repo, int(number), text))
     elif kind.startswith("fix:"):
         repo = os.environ.get("COUNSEL_FIX_REPO", "shanurwan/counsel")
@@ -504,6 +534,11 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("compile", help="compile the registry to db/generated/agents.sql")
     p.add_argument("--check", action="store_true", help="fail if the compiled file is out of date")
     p.set_defaults(fn=cmd_compile)
+
+    p = sub.add_parser("field", help="score triage drafts on real repositories against what maintainers did")
+    p.add_argument("--since", required=True, help="start of the field run, YYYY-MM-DD[THH:MM] UTC")
+    p.add_argument("--dsn", help="defaults to COUNSEL_DATABASE_URL; only reads")
+    p.set_defaults(fn=cmd_field)
 
     p = sub.add_parser("compliance", help="render docs/compliance.md from compliance/owasp.yaml")
     p.add_argument("--check", action="store_true", help="fail if the page is out of date or cites a missing test")

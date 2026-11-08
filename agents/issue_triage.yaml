@@ -9,4 +9,7 @@ triggers:
   events: [issue_opened]
 suite: evals/issue_triage
 minutes_per_output: 5
-watches: [shanurwan/counsel]
+# Counsel and RedHanded are the author's own repositories, used for real. The Supabase
+# repositories are a shadow-mode field run (docs/field-week.md): their public issues
+# are read and triaged into drafts here; nothing is ever posted to them.
+watches: [shanurwan/counsel, shanurwan/redhanded, supabase/auth, supabase/supabase, supabase/supabase-js, supabase/cli]

@@ -178,15 +178,27 @@ def sync(conn: psycopg.Connection, client: GitHub, repo: str, *, max_new: int = 
     a busy repository cannot spend a day's free model calls at once."""
     with conn.transaction():
         conn.execute(f'set local role "{ORCHESTRATOR_ROLE}"')
-        state = conn.execute("select etag, since from counsel.sync_state where repo = %s", (repo,)).fetchone()
+        state = conn.execute("select etag, since, watched_since from counsel.sync_state where repo = %s",
+                             (repo,)).fetchone()
+        if state is None:
+            # Watching starts now. Recorded before any issue is stored, because the
+            # trigger that enqueues triage reads it (0017_watch_window.sql).
+            conn.execute("insert into counsel.sync_state (repo, watched_since) values (%s, %s)", (repo, now))
+            state = (None, None, now)
         known = {r[0] for r in conn.execute("select number from work.issues where repo = %s", (repo,))}
-    etag, since = state or (None, None)
+    etag, since, watched_since = state
     issues, new_etag = client.issues(repo, etag=etag, since=since)
 
-    fresh = sorted((i for i in issues if i["number"] not in known), key=lambda i: i["number"])
+    def before_watching(i: dict) -> bool:
+        return watched_since is not None and _time(i["created_at"]) < watched_since
+
+    # Opened before watching began: stored as history for duplicate checks, never triaged.
+    history = {i["number"] for i in issues if i["number"] not in known and before_watching(i)}
+    fresh = sorted((i for i in issues if i["number"] not in known and i["number"] not in history),
+                   key=lambda i: i["number"])
     # The newest issues are the ones a person is waiting on; older ones are history.
     allowed = {i["number"] for i in fresh[-max_new:]} if max_new else set()
-    rows = [i for i in issues if i["number"] in known or i["number"] in allowed]
+    rows = [i for i in issues if i["number"] in known or i["number"] in allowed or i["number"] in history]
     with conn.transaction():
         conn.execute(f'set local role "{ORCHESTRATOR_ROLE}"')
         for issue in rows:
@@ -205,6 +217,7 @@ def sync(conn: psycopg.Connection, client: GitHub, repo: str, *, max_new: int = 
                  synced_at = excluded.synced_at""",
             (repo, new_etag, newest, now))
     return {"repo": repo, "seen": len(issues), "new": len(allowed), "skipped": len(fresh) - len(allowed),
+            "history": len(history),
             "not_modified": not issues and etag is not None and new_etag == etag}
 
 

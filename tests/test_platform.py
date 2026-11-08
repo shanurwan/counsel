@@ -264,9 +264,12 @@ def test_a_note_is_never_quoted_into_a_message(platform, make_worker):
 # --- GitHub --------------------------------------------------------------------------------
 
 
-def issue(number, title="Login fails", state="open", pr=False, updated="2026-11-04T01:00:00Z", body="It breaks"):
+def issue(number, title="Login fails", state="open", pr=False, updated="2026-11-04T01:00:00Z", body="It breaks",
+          created=None):
+    # Opened just after watching starts (AT), unless a test says otherwise.
+    created = created or (AT + timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     data = {"id": 1000 + number, "number": number, "title": title, "body": body, "state": state,
-            "user": {"login": "someone"}, "labels": [{"name": "bug"}], "created_at": "2026-11-03T00:00:00Z",
+            "user": {"login": "someone"}, "labels": [{"name": "bug"}], "created_at": created,
             "updated_at": updated, "html_url": f"https://github.com/{REPO}/issues/{number}"}
     return {**data, "pull_request": {"url": "x"}} if pr else data
 
@@ -368,6 +371,26 @@ def test_a_first_sync_of_a_busy_repository_is_capped_at_the_newest(platform):
     assert (result["new"], result["skipped"]) == (3, 17)
     numbers = [r[0] for r in platform.execute("select number from work.issues order by number")]
     assert numbers == [18, 19, 20]
+
+
+def test_a_newly_watched_repositorys_backlog_is_history_not_triaged(platform):
+    before = (AT - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    backlog = [issue(n, title=f"Old problem {n}", created=before) for n in range(1, 41)]
+    client = github.GitHub(transport=FakeGitHub(ok(backlog + [issue(41, title="New problem")])))
+    result = github.sync(platform, client, REPO, max_new=3, now=AT)
+    assert (result["history"], result["new"]) == (40, 1)
+    # All 41 are there to compare against; only the one opened after watching began is triaged.
+    assert one(platform, "select count(*) from work.issues") == (41,)
+    assert [r[0] for r in platform.execute("select payload->>'number' from counsel.jobs "
+                                           "where idempotency_key like 'issue:%%'")] == ["41"]
+    assert one(platform, "select watched_since = %s from counsel.sync_state where repo = %s", AT, REPO) == (True,)
+
+
+def test_a_repository_watched_before_the_window_existed_triages_as_it_did(platform):
+    platform.execute("insert into counsel.sync_state (repo) values (%s)", (REPO,))
+    old = issue(1, created=(AT - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    github.sync(platform, github.GitHub(transport=FakeGitHub(ok([old]))), REPO, now=AT)
+    assert one(platform, "select count(*) from counsel.jobs where idempotency_key like 'issue:%%'") == (1,)
 
 
 def test_a_closed_issue_is_stored_but_never_triaged(platform):
