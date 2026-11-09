@@ -183,7 +183,8 @@ def compile_sql(cfg: Config, source: str = "guard.yaml") -> str:
         f"-- {cfg.role}: no attributes, no memberships, nothing but the grants below.",
         "do $$",
         "begin",
-        f"  if not exists (select from pg_roles where rolname = '{cfg.role}') then",
+        # compile writes SQL text: every name in it has matched NAME or TABLE in load().
+        f"  if not exists (select from pg_roles where rolname = '{cfg.role}') then",  # nosec B608
         f"    create role {r} {'login' if cfg.login else 'nologin'};",
         "  end if;",
         "end $$;",
@@ -191,7 +192,7 @@ def compile_sql(cfg: Config, source: str = "guard.yaml") -> str:
         # Only when one is set: on Supabase, postgres is not a superuser and may not touch these.
         "do $$",
         "begin",
-        f"  if exists (select from pg_roles where rolname = '{cfg.role}'",
+        f"  if exists (select from pg_roles where rolname = '{cfg.role}'",  # nosec B608
         "             and (rolsuper or rolbypassrls or rolreplication or rolcreaterole or rolcreatedb)) then",
         f"    alter role {r} nosuperuser nobypassrls noreplication nocreaterole nocreatedb;",
         "  end if;",
@@ -246,7 +247,7 @@ def compile_sql(cfg: Config, source: str = "guard.yaml") -> str:
         kinds = (["select"] if t in cfg.reads else []) + [k for k in WRITE_KINDS if k in cfg.writes.get(t, {})]
         out += ["do $guard$",
                 "begin",
-                f"  if (select relkind from pg_class where oid = '{_qt(t)}'::regclass) in ('r', 'p') then"]
+                f"  if (select relkind from pg_class where oid = '{_qt(t)}'::regclass) in ('r', 'p') then"]  # nosec B608
         for kind in kinds:
             name = _q(f"guard_{cfg.role}_{kind}"[:63])
             clause = {"select": f"using ({pred})", "insert": f"with check ({pred})",
