@@ -363,10 +363,16 @@ def _issue(conn, repo: str, number: int) -> dict:
     others = conn.execute(
         "select number, title, body from work.issues where repo = %s and number <> %s and state = 'open' order by number",
         (repo, number)).fetchall()
-    terms = _terms(f"{row[1]} {row[2]}")
-    scored = sorted(((len(terms & _terms(f"{t} {b}")), n, t) for n, t, b in others), key=lambda s: (-s[0], s[1]))
     return {"number": row[0], "title": row[1], "body": row[2], "author": row[3], "labels": row[4],
-            "similar": [{"number": n, "title": t} for overlap, n, t in scored[:5] if overlap >= 2]}
+            "similar": similar_issues(row[1], row[2], others)}
+
+
+def similar_issues(title: str, body: str | None, others) -> list[dict]:
+    """Up to five open issues sharing at least two terms with this one: the only duplicates
+    the model may name. Shared with the replay (replay.py), so both see the same candidates."""
+    terms = _terms(f"{title} {body or ''}")
+    scored = sorted(((len(terms & _terms(f"{t} {b or ''}")), n, t) for n, t, b in others), key=lambda s: (-s[0], s[1]))
+    return [{"number": n, "title": t} for overlap, n, t in scored[:5] if overlap >= 2]
 
 
 def check_references(note: str, issue: dict) -> str:

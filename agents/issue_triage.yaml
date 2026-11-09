@@ -11,5 +11,7 @@ suite: evals/issue_triage
 minutes_per_output: 5
 # Counsel and RedHanded are the author's own repositories, used for real. The Supabase
 # repositories are a shadow-mode field run (docs/field-week.md): their public issues
-# are read and triaged into drafts here; nothing is ever posted to them.
-watches: [shanurwan/counsel, shanurwan/redhanded, supabase/auth, supabase/supabase, supabase/supabase-js, supabase/cli]
+# are read and triaged into drafts here; nothing is ever posted to them. `counsel field-replay`
+# replays the same agent on issues they have already handled (docs/field-replay.md).
+watches: [shanurwan/counsel, shanurwan/redhanded, supabase/auth, supabase/supabase, supabase/supabase-js, supabase/cli,
+          supabase/storage, supabase/realtime, supabase/mcp, supabase/supabase-py]

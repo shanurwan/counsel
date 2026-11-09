@@ -76,6 +76,21 @@ def cmd_field(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_field_replay(args: argparse.Namespace) -> int:
+    """Replay issue_triage on issues maintainers already handled (docs/field-replay.md)."""
+    from datetime import datetime, timezone
+
+    from . import replay
+
+    since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
+    until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
+    summary = replay.run(args.repo, since, until, build_model(), ROOT / "field", ROOT / "docs" / "field-replay.md",
+                         pool_days=args.pool_days, pause=args.pause,
+                         log=lambda m: print(m, file=sys.stderr, flush=True))
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
 def cmd_compliance(args: argparse.Namespace) -> int:
     from . import compliance
 
@@ -581,6 +596,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--since", required=True, help="start of the field run, YYYY-MM-DD[THH:MM] UTC")
     p.add_argument("--dsn", help="defaults to COUNSEL_DATABASE_URL; only reads")
     p.set_defaults(fn=cmd_field)
+
+    p = sub.add_parser("field-replay", help="replay issue triage on issues maintainers already handled, and score it")
+    p.add_argument("--repo", action="append", required=True)
+    p.add_argument("--since", required=True, help="first day of the window, YYYY-MM-DD (UTC)")
+    p.add_argument("--until", required=True, help="day after the window, YYYY-MM-DD (UTC)")
+    p.add_argument("--pool-days", type=int, default=90, help="how far back to look for duplicate candidates")
+    p.add_argument("--pause", type=float, default=1.0, help="seconds between model calls")
+    p.set_defaults(fn=cmd_field_replay)
 
     p = sub.add_parser("compliance", help="render docs/compliance.md from compliance/owasp.yaml")
     p.add_argument("--check", action="store_true", help="fail if the page is out of date or cites a missing test")
