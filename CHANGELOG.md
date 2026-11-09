@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+**counsel guard**
+- `counsel guard check` reads what any Postgres or Supabase role can do: tables and
+  columns, memberships (`service_role`, `authenticated`), RLS bypass, `auth` and `vault`,
+  owner-rights views, SECURITY DEFINER functions. Read-only; exit 1 on a failure, and on
+  anything a `guard.yaml` does not allow.
+- `counsel guard compile` turns `guard.yaml` into the role, column grants, policies and a
+  trigger that refuses changes to `never_write` columns. A GitHub Action gates CI on it.
+- Tested on Postgres 15 and 17 and on the `supabase/postgres` 15.19 and 17.11 images.
+
+**Field run**
+- `counsel field` reads maintainers' 👍, 👎 and replies on delivered triage notes, with
+  the helpful rate's Wilson lower bound and users counted by login.
+
 ## 0.1.0 — 2026-11-08
 
 The first tagged release. Everything below runs on free tiers, on synthetic data.

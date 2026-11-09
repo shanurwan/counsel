@@ -1,0 +1,21 @@
+# counsel guard config: what the agent's database role may do (docs/guard.md).
+# counsel guard compile guard.yaml > agent.sql    then review and apply agent.sql
+# counsel guard check --config guard.yaml         read-only; exit 1 on anything else
+
+role: support_agent          # its own role; never service_role, authenticated or anon
+login: true                  # it connects with its own password: alter role support_agent password '...';
+
+reads:
+  public.tickets: [id, team, subject, body, summary, status]   # columns, or: all
+
+writes:
+  public.ticket_drafts:
+    insert: [ticket_id, body]
+  public.tickets:
+    update: [summary]
+
+rows:                        # which rows, one SQL condition per table (default: every row)
+  public.tickets: "team = 'support'"
+
+never_write:                 # a trigger refuses these, even after a mistaken grant
+  public.tickets: [assignee, status, refund_cents]

@@ -15,6 +15,23 @@ in your browser, running these migrations.
 [![security](https://github.com/shanurwan/counsel/actions/workflows/security.yml/badge.svg)](https://github.com/shanurwan/counsel/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/shanurwan/counsel/badge)](https://scorecard.dev/viewer/?uri=github.com/shanurwan/counsel)
 
+## The same wall for your database
+
+`counsel guard` checks the AI agent on **your** Postgres or Supabase database: every table
+its role can read or write, whether it can become `service_role` or skip row-level
+security, what it can reach in `auth` and `vault`. Then it compiles a `guard.yaml` into
+least-privilege SQL with a trigger that refuses the writes it must never make, and gates
+CI on the result. Read-only against your database.
+
+```sh
+pipx install "git+https://github.com/shanurwan/counsel"
+DATABASE_URL=postgresql://... counsel guard check --role my_agent
+```
+
+On Supabase's own image, an agent role granted `service_role` could read and delete every
+decrypted secret in Vault; `check` fails it. [docs/guard.md](docs/guard.md) has the
+config, the GitHub Action and what it does not cover.
+
 ## The proof, first
 
 CI builds this table from a live Postgres on every push using

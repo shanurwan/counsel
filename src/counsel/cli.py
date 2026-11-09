@@ -1,5 +1,6 @@
 """counsel validate | compile | audit | bench | eval | ask | standup | review | rollback | sync | warehouse |
-report | maturity | trace | simulate | challenge | new | inbox | link-login"""
+report | maturity | trace | simulate | challenge | new | inbox | link-login |
+guard"""
 
 from __future__ import annotations
 
@@ -175,6 +176,35 @@ def _dsn(args) -> str:
         print("set COUNSEL_DATABASE_URL or pass --dsn", file=sys.stderr)
         sys.exit(2)
     return dsn
+
+
+def cmd_guard(args: argparse.Namespace) -> int:
+    """What the AI agent on any Postgres or Supabase database can write (docs/guard.md)."""
+    import psycopg
+
+    from . import guard
+
+    try:
+        if args.guard_cmd == "compile":
+            print(guard.compile_sql(guard.load(args.config), Path(args.config).name), end="")
+            return 0
+        cfg = guard.load(args.config) if args.config else None
+        role = args.role or (cfg.role if cfg else None)
+        if not role:
+            print("counsel guard check: pass --role, or --config with a role in it", file=sys.stderr)
+            return 2
+        dsn = args.dsn or os.environ.get("DATABASE_URL") or os.environ.get("COUNSEL_DATABASE_URL")
+        if not dsn:
+            print("counsel guard check: set DATABASE_URL or pass --dsn (an admin connection string; "
+                  "it only reads)", file=sys.stderr)
+            return 2
+        with psycopg.connect(dsn) as conn:
+            report = guard.check(conn, role, cfg)
+    except guard.GuardError as e:
+        print(f"counsel guard: {e}", file=sys.stderr)
+        return 2
+    print(guard.to_json(report) if args.json else guard.render(report), end="")
+    return 1 if report.failed else 0
 
 
 def cmd_tick(args: argparse.Namespace) -> int:
@@ -534,6 +564,18 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("compile", help="compile the registry to db/generated/agents.sql")
     p.add_argument("--check", action="store_true", help="fail if the compiled file is out of date")
     p.set_defaults(fn=cmd_compile)
+
+    p = sub.add_parser("guard", help="what the AI agent on any Postgres or Supabase database can write")
+    gsub = p.add_subparsers(dest="guard_cmd", required=True)
+    g = gsub.add_parser("check", help="read the live database: everything the role can reach; exit 1 on a failure")
+    g.add_argument("--role", help="the database role your agent uses")
+    g.add_argument("--config", help="guard.yaml: also fail on anything it does not allow")
+    g.add_argument("--dsn", help="an admin connection string (default: DATABASE_URL); it only reads")
+    g.add_argument("--json", action="store_true")
+    g.set_defaults(fn=cmd_guard)
+    g = gsub.add_parser("compile", help="the SQL that makes the role match guard.yaml")
+    g.add_argument("config")
+    g.set_defaults(fn=cmd_guard)
 
     p = sub.add_parser("field", help="score triage drafts on real repositories against what maintainers did")
     p.add_argument("--since", required=True, help="start of the field run, YYYY-MM-DD[THH:MM] UTC")
