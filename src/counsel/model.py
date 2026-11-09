@@ -209,6 +209,19 @@ class ReplayModel:
         return Completion(**{**rec, "latency_ms": 0})
 
 
+class FillModel:
+    """Replays what is recorded and records only what is missing, so adding one case
+    re-records nothing else: the judge's calibration and other agents' cases stay put."""
+
+    def __init__(self, live: Model, directory: Path):
+        self.replay, self.record = ReplayModel(directory), RecordingModel(live, directory)
+
+    def complete(self, messages: list[dict], *, max_tokens: int = 800) -> Completion:
+        if (self.replay.directory / f"{request_hash(messages, max_tokens)}.json").exists():
+            return self.replay.complete(messages, max_tokens=max_tokens)
+        return self.record.complete(messages, max_tokens=max_tokens)
+
+
 class RecordingModel:
     """Calls a live model and saves each completion for later replay."""
 

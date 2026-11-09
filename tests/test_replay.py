@@ -76,7 +76,7 @@ def test_a_run_writes_the_report_with_bounds_and_every_issue(tmp_path):
                                                      "state_reason": "duplicate", "labels": []}})
     summary = replay.run([REPO], since, until, Model(), tmp_path / "field", tmp_path / "doc.md", get=get,
                          log=lambda m: None, now=lambda: datetime(2026, 11, 12, tzinfo=UTC))
-    assert len(calls) == 1 and calls[0]["labels"] == []
+    assert len(calls) == 2 and calls[0]["labels"] == []  # the note, then the duplicate check
     assert summary["duplicate_precision"]["k"] == 1 and summary["duplicate_precision"]["n"] == 1
     page = (tmp_path / "doc.md").read_text(encoding="utf-8")
     assert "acme/widgets#9" in page and "lower bound" in page and "avoids hindsight" in page
@@ -89,3 +89,40 @@ def test_an_invented_issue_number_is_flagged_and_its_duplicate_claim_not_counted
     seen = replay.as_seen(POOL[0], POOL)
     note = check_references("Possible duplicate: #8. Also see #4242.", seen)
     assert "4242" in note and field.read_note(note, 9)[0] == []
+
+
+def test_a_duplicate_the_check_calls_related_becomes_related_and_is_not_counted():
+    from counsel import field
+    from counsel.behaviors import triage_note
+
+    seen = replay.as_seen(POOL[0], POOL)
+    asked = []
+
+    def complete(name, messages, max_tokens):
+        asked.append((name, json.loads(messages[1]["content"])))
+        if name == "triage":
+            return "Token refresh fails after upgrade. Area: auth. Possible duplicate: #8."
+        return "RELATED"
+
+    note = triage_note(complete, seen)
+    assert "Related: #8" in note and field.read_note(note, 9)[0] == []
+    # The note's model sees titles only; the check sees both bodies.
+    assert "candidates" not in asked[0][1] and asked[1][0] == "verify duplicate"
+    assert asked[1][1]["older"]["number"] == 8
+
+
+def test_a_duplicate_the_check_confirms_stays():
+    from counsel import field
+    from counsel.behaviors import triage_note
+
+    seen = replay.as_seen(POOL[0], POOL)
+    note = triage_note(lambda name, m, t: "Fails. Duplicate: #8." if name == "triage" else "DUPLICATE", seen)
+    assert field.read_note(note, 9)[0] == [8]
+
+
+def test_related_and_no_duplicate_are_not_claims():
+    from counsel.behaviors import duplicate_references
+
+    assert duplicate_references("Area: auth. Related: #8. No duplicate found.", 9) == []
+    assert duplicate_references("Possible duplicate: #8; related: #6.", 9) == [8]
+    assert duplicate_references("This is a duplicate of #8.", 9) == [8]

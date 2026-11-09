@@ -1,0 +1,9 @@
+{
+  "failed_attempts": [],
+  "latency_ms": 1964,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 52,
+  "prompt_tokens": 306,
+  "provider": "nvidia",
+  "text": "The app crashes on startup with exit code 137. Area: startup/crash. Missing: OS, app version, steps to reproduce, full logs, memory limits (exit code 137 often indicates OOM kill). no duplicate found"
+}

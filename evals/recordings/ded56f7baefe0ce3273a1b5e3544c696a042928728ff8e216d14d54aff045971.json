@@ -1,0 +1,13 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 234 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 222 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 223 ms"
+  ],
+  "latency_ms": 1141,
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "output_tokens": 50,
+  "prompt_tokens": 277,
+  "provider": "nvidia",
+  "text": "Clicking Continue with GitHub on the dashboard login returns the user to the login page with no error. Authentication. Missing: details about the user's environment, browser, or whether the issue occurs in incognito mode. No duplicate found."
+}

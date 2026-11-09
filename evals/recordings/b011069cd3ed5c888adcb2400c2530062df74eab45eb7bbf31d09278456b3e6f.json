@@ -1,0 +1,9 @@
+{
+  "failed_attempts": [],
+  "latency_ms": 1243,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 5,
+  "prompt_tokens": 170,
+  "provider": "nvidia",
+  "text": "DUPLICATE"
+}

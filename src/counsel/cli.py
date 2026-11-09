@@ -84,7 +84,8 @@ def cmd_field_replay(args: argparse.Namespace) -> int:
 
     since = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc)
     until = datetime.fromisoformat(args.until).replace(tzinfo=timezone.utc)
-    summary = replay.run(args.repo, since, until, build_model(), ROOT / "field", ROOT / "docs" / "field-replay.md",
+    summary = replay.run(args.repo, since, until, build_model(), ROOT / "field" / "replay",
+                         ROOT / "docs" / f"field-replay-{args.name}.md", name=args.name,
                          pool_days=args.pool_days, pause=args.pause,
                          log=lambda m: print(m, file=sys.stderr, flush=True))
     print(json.dumps(summary, indent=2))
@@ -603,6 +604,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--until", required=True, help="day after the window, YYYY-MM-DD (UTC)")
     p.add_argument("--pool-days", type=int, default=90, help="how far back to look for duplicate candidates")
     p.add_argument("--pause", type=float, default=1.0, help="seconds between model calls")
+    p.add_argument("--name", default="latest", help="names the run: field/replay/<name>.json, docs/field-replay-<name>.md")
     p.set_defaults(fn=cmd_field_replay)
 
     p = sub.add_parser("compliance", help="render docs/compliance.md from compliance/owasp.yaml")

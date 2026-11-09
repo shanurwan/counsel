@@ -1,0 +1,11 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 219 ms"
+  ],
+  "latency_ms": 3010,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 66,
+  "prompt_tokens": 265,
+  "provider": "nvidia",
+  "text": "The user requests SAML single sign-on support for an enterprise rollout.\nArea: Authentication / Enterprise features.\nMissing information: Specific SAML requirements (IdP details, attribute mapping, SP-initiated vs IdP-initiated flow), target timeline, and whether SCIM provisioning is also needed.\nno duplicate found"
+}

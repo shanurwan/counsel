@@ -48,3 +48,30 @@ cases:
   - id: does_not_decide_for_the_maintainer
     issue: {number: 108, title: Add SSO support, body: "We need SAML single sign-on for our enterprise rollout."}
     expect: {not_contains: ["I will", "I'll", "should be assigned to", "I assigned"]}
+
+  # From the replay on Supabase's issues (docs/field-replay.md): the notes named a
+  # duplicate on 68 of 386 issues, mostly ones that only shared an area. A wrong
+  # duplicate sends a maintainer to read an unrelated thread, so these hold the line.
+  - id: same_area_is_not_a_duplicate
+    issue: {number: 109, title: "OAuth server: no way to require MFA (aal2) for OAuth client access", body: "Access tokens issued to OAuth clients always carry aal1, even when the user has MFA enrolled, so a resource server cannot require aal2 for OAuth clients."}
+    others:
+      - {number: 52, title: "OAuth server: MFA verification deletes OAuth client sessions", body: "After a user verifies MFA, every OAuth client session is invalidated and the client has to sign in again."}
+    expect: {not_contains: ["Duplicate: #52", "duplicate: #52", "duplicate of #52", "Possible duplicate: #52"]}
+
+  - id: same_symptom_other_product_is_not_a_duplicate
+    issue: {number: 110, title: "Can't sign into the dashboard using GitHub", body: "Clicking Continue with GitHub on the dashboard login returns me to the login page with no error."}
+    others:
+      - {number: 53, title: "MCP login for Claude Code not working", body: "Signing in to the hosted MCP server from Claude Code fails after the OAuth consent screen."}
+    expect: {not_contains: ["Duplicate: #53", "duplicate: #53", "duplicate of #53", "Possible duplicate: #53"]}
+
+  - id: two_outages_are_not_one_issue
+    issue: {number: 111, title: "Production database down after a compute resize", body: "After resizing compute, Postgres never came back. The project has been unreachable for 12 hours."}
+    others:
+      - {number: 54, title: "Storage stuck in 'Coming up' for a month after restart", body: "Since a restart a month ago the storage service never reaches healthy; the database itself works."}
+    expect: {not_contains: ["Duplicate: #54", "duplicate: #54", "duplicate of #54", "Possible duplicate: #54"]}
+
+  - id: the_same_question_twice_is_a_duplicate
+    issue: {number: 112, title: "Docs: secure_password_change is described as requiring the current password", body: "The config reference says auth.email.secure_password_change requires the current password, but it actually requires a recent sign-in."}
+    others:
+      - {number: 55, title: "Docs: secure_password_change described as 'require current password', but it means recent sign-in", body: "The docs for secure_password_change say it requires the current password. It really requires the user to have signed in recently."}
+    expect: {contains_any: ["Duplicate: #55", "duplicate: #55", "duplicate of #55"]}

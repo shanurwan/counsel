@@ -1,0 +1,9 @@
+{
+  "failed_attempts": [],
+  "latency_ms": 1590,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 38,
+  "prompt_tokens": 265,
+  "provider": "nvidia",
+  "text": "User reports a login error with no details provided.\nArea: Authentication / Login.\nMissing: Error message, steps to reproduce, browser/OS, expected vs actual behavior.\nno duplicate found"
+}

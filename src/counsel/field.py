@@ -28,7 +28,7 @@ from typing import Callable
 
 import psycopg
 
-from .behaviors import REFERENCE, UNCHECKED_REFERENCE
+from .behaviors import UNCHECKED_REFERENCE, duplicate_references
 from .evals import wilson
 
 API = "https://api.github.com"
@@ -111,9 +111,12 @@ class Scored:
 
 
 def read_note(note: str, number: int) -> tuple[list[int], bool]:
-    """The duplicate the draft names (code-checked ones only) and whether it says something is missing."""
+    """The duplicate the draft names (code-checked ones only) and whether it says something is missing.
+
+    Only a reference in a clause that calls it a duplicate counts: 'Related: #12' points the
+    reader at something, it does not claim the issue is the same problem."""
     unchecked = UNCHECKED_REFERENCE.split("{")[0] in note
-    claimed = [] if unchecked else sorted({int(n) for n in REFERENCE.findall(note)} - {number})
+    claimed = [] if unchecked else duplicate_references(note, number)
     missing = bool(SAYS_MISSING.search(note)) and not NOTHING_MISSING.search(note)
     return claimed, missing
 

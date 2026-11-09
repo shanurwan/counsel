@@ -1,0 +1,9 @@
+{
+  "failed_attempts": [],
+  "latency_ms": 2493,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 57,
+  "prompt_tokens": 287,
+  "provider": "nvidia",
+  "text": "Safari users lose their login session cookie after a page refresh. Area: authentication/session management. Missing: Safari version, cookie attributes (SameSite, Secure, Domain), reproduction steps, and whether this occurs in private browsing or cross-site contexts. Duplicate: #50"
+}

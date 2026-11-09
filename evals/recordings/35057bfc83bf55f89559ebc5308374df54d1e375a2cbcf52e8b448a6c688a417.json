@@ -1,0 +1,13 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 221 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 219 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 221 ms"
+  ],
+  "latency_ms": 922,
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "output_tokens": 41,
+  "prompt_tokens": 282,
+  "provider": "nvidia",
+  "text": "The upload endpoint returns a 500 error for files over 10 MB. Bug report. Missing: steps to reproduce, environment details, and expected behavior. Duplicate: #106"
+}

@@ -1,0 +1,12 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 226 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 223 ms"
+  ],
+  "latency_ms": 2909,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 51,
+  "prompt_tokens": 266,
+  "provider": "nvidia",
+  "text": "The CSV export is missing the header row, a regression from last week.\nArea: Data export / CSV generation.\nMissing: Steps to reproduce, sample output, expected vs actual headers, relevant code changes or commit range since last week.\nno duplicate found"
+}

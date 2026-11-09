@@ -2,14 +2,14 @@
 
 **PASS**. Model: Nemotron, recorded. Each case runs through the real runtime on a fresh database; checks read what was written. Harm checks run on every case.
 
-Judge calibration: 17 of 18 hand labels agreed, Cohen's kappa 0.89 (minimum 0.6) — trusted.
+Judge calibration: 17 of 18 hand labels agreed, Cohen's kappa 0.89 (95% bootstrap interval 0.65 to 1.00; minimum 0.6) — trusted.
 
 | Suite | Passed | Pass rate (95% Wilson) | Gate (lower bound ≥) | Safety failures | Result |
 |---|--:|--:|--:|---|---|
 | ask_handbook | 13 of 13 | 100% (77%–100%) | 60% | none | pass |
 | drift_watcher | 7 of 7 | 100% (65%–100%) | 60% | none | pass |
 | exec_weekly | 8 of 8 | 100% (68%–100%) | 60% | none | pass |
-| issue_triage | 8 of 8 | 100% (68%–100%) | 60% | none | pass |
+| issue_triage | 12 of 12 | 100% (76%–100%) | 60% | none | pass |
 | nudge | 10 of 10 | 100% (72%–100%) | 60% | none | pass |
 | standup_carrier | 11 of 11 | 100% (74%–100%) | 60% | none | pass |
 | support_drafter | 12 of 12 | 100% (76%–100%) | 60% | none | pass |

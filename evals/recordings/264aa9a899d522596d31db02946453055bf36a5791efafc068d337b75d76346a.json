@@ -1,0 +1,11 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 239 ms"
+  ],
+  "latency_ms": 2895,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 90,
+  "prompt_tokens": 303,
+  "provider": "nvidia",
+  "text": "User reports production database down for 12 hours after a compute resize operation; Postgres failed to restart.\n\nArea: Compute/Database lifecycle (resize, startup).\n\nMissing: Project ID, region, resize details (from/to size), any error messages or logs from the dashboard/CLI, whether a restart was attempted.\n\nRelated: #54 (storage stuck 'Coming up' after restart, different trigger but similar symptom).\n\nno duplicate found"
+}

@@ -1,0 +1,11 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 226 ms"
+  ],
+  "latency_ms": 1399,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 31,
+  "prompt_tokens": 277,
+  "provider": "nvidia",
+  "text": "Reported: Typo on the installation documentation page.\nArea: Documentation.\nMissing: Specific location of the typo and suggested correction.\nNo duplicate found."
+}

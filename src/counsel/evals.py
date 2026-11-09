@@ -40,7 +40,7 @@ from . import registry, review
 from .behaviors import ACTION_FLAG, IMPLEMENTATIONS, NOT_COVERED, SUPPORT_NOT_COVERED
 from .cli import migrate
 from .compiler import logins
-from .model import Completion, ModelError, NvidiaModel, RecordingModel, ReplayModel
+from .model import Completion, FillModel, ModelError, NvidiaModel, RecordingModel, ReplayModel
 from .runtime import Worker
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -108,7 +108,13 @@ def kappa_interval(a: list[bool], b: list[bool], *, resamples: int = 2000, level
 
 
 def eval_model():
-    """Replay in CI. COUNSEL_MODEL=record calls Nemotron and saves every response."""
+    """Replay in CI. COUNSEL_MODEL=record calls Nemotron and saves every response;
+    COUNSEL_MODEL=fill records only the requests that have no recording yet."""
+    if os.environ.get("COUNSEL_MODEL") == "fill":
+        key = os.environ.get("NVIDIA_API_KEY")
+        if not key:
+            raise ModelError("COUNSEL_MODEL=fill needs NVIDIA_API_KEY")
+        return FillModel(NvidiaModel(api_key=key), RECORDINGS)
     if os.environ.get("COUNSEL_MODEL") == "record":
         key = os.environ.get("NVIDIA_API_KEY")
         if not key:

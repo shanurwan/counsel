@@ -1,0 +1,9 @@
+{
+  "failed_attempts": [],
+  "latency_ms": 5165,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 95,
+  "prompt_tokens": 300,
+  "provider": "nvidia",
+  "text": "The API returns \"too many connections\" at ~200 req/s after upgrading to v2.4 with Postgres 16 and pool size 20; rolling back to v2.3 resolves it.\nArea: Database connection pooling / API performance.\nMissing: Application framework/ORM, connection pool configuration details (idle timeout, max lifetime), Postgres `max_connections` setting, and logs showing connection acquisition/release behavior.\nno duplicate found"
+}

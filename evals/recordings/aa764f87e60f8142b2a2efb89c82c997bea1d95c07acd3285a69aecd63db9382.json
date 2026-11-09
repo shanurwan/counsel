@@ -1,0 +1,13 @@
+{
+  "failed_attempts": [
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 219 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 232 ms",
+    "nvidia/nemotron-3-ultra-550b-a55b: 429 {'status': 429, 'title': 'Too Many Requests'} after 218 ms"
+  ],
+  "latency_ms": 1140,
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "output_tokens": 49,
+  "prompt_tokens": 315,
+  "provider": "nvidia",
+  "text": "The config reference states that auth.email.secure_password_change requires the current password, but it actually requires a recent sign-in. Documentation. The title and description match issue #55, which reports the same discrepancy. Duplicate: #55"
+}

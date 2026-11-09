@@ -1,0 +1,9 @@
+{
+  "failed_attempts": [],
+  "latency_ms": 1740,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "output_tokens": 68,
+  "prompt_tokens": 325,
+  "provider": "nvidia",
+  "text": "The issue reports that OAuth access tokens are always issued with AAL1, preventing resource servers from enforcing AAL2 (MFA) requirements for OAuth clients. Area: OAuth server / authentication assurance levels. Missing information: expected behavior details, configuration steps attempted, and relevant logs or code snippets. Duplicate: #52."
+}
