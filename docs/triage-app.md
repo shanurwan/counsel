@@ -42,6 +42,12 @@ issue. Installs alone, stars and page views do not count. Each delivered note is
 `counsel.deliveries` with the link to its comment, so the reactions on it can be read
 back.
 
+`counsel field` reads them back: the 👍 and 👎 on each note, and replies on the notes
+issue, are written to [field-week.md](field-week.md) with the helpful rate and its Wilson
+lower bound, every rater named, and each user counted by login. The author's own
+reactions are shown but never counted. A note rated not helpful comes with the
+`counsel challenge` command that turns it into a case in the triage suite.
+
 ## Setting it up
 
 1. Create the GitHub App under the author's account: Issues read and write, Metadata
