@@ -126,3 +126,36 @@ def test_related_and_no_duplicate_are_not_claims():
     assert duplicate_references("Area: auth. Related: #8. No duplicate found.", 9) == []
     assert duplicate_references("Possible duplicate: #8; related: #6.", 9) == [8]
     assert duplicate_references("This is a duplicate of #8.", 9) == [8]
+
+
+def test_a_rate_limited_run_waits_resumes_and_never_pays_twice(tmp_path):
+    from counsel.model import ModelError
+
+    pool = [issue(n, f"2026-10-{n + 10:02d}T00:00:00Z", f"Distinct problem number {n} widget") for n in range(1, 4)]
+    get = get_factory([pool])
+    since, until = datetime(2026, 10, 1, tzinfo=UTC), datetime(2026, 11, 1, tzinfo=UTC)
+    calls, waits = [], []
+
+    class Flaky:
+        def __init__(self, fail_after):
+            self.fail_after = fail_after
+
+        def complete(self, messages, max_tokens=800):
+            if len(calls) >= self.fail_after:
+                raise ModelError("nvidia: 429 Too Many Requests")
+            calls.append(1)
+            return type("C", (), {"text": "A problem. No duplicate found."})()
+
+    # Two notes, then the provider refuses for longer than the backoff lasts.
+    try:
+        replay.run([REPO], since, until, Flaky(2), tmp_path / "f", tmp_path / "d.md", get=get, name="x",
+                   log=lambda m: None, sleep=waits.append)
+    except ModelError:
+        pass
+    assert len(calls) == 2 and waits[:2] == [20, 40]
+    assert len((tmp_path / "f" / "x.partial.jsonl").read_text().splitlines()) == 2
+    # The rerun pays only for the third note, then removes the checkpoint.
+    summary = replay.run([REPO], since, until, Flaky(99), tmp_path / "f", tmp_path / "d.md", get=get, name="x",
+                         log=lambda m: None, sleep=lambda s: None)
+    assert len(calls) == 3 and summary["triaged"] == 3
+    assert not (tmp_path / "f" / "x.partial.jsonl").exists()

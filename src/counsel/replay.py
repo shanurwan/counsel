@@ -34,6 +34,7 @@ from typing import Callable
 from . import field
 from .behaviors import similar_issues, triage_note
 from .evals import wilson
+from .model import ModelError
 
 API = field.API
 
@@ -92,22 +93,38 @@ def candidates(issues: list[dict], since: datetime) -> list[dict]:
 
 def run(repos: list[str], since: datetime, until: datetime, model, out: Path, doc: Path, *,
         pool_days: int = 90, get: field.Get = field._get, pause: float = 0.0, name: str = "replay",
-        now: Callable[[], datetime] | None = None, log: Callable[[str], None] = print) -> dict:
+        now: Callable[[], datetime] | None = None, log: Callable[[str], None] = print,
+        sleep: Callable[[float], None] = time.sleep) -> dict:
     rows: list[field.Scored] = []
+    out.mkdir(parents=True, exist_ok=True)
+    # Every note is kept as it is written, so a run stopped by a rate limit resumes
+    # where it was and never pays for the same note twice.
+    partial = out / f"{name}.partial.jsonl"
+    done = {}
+    if partial.exists():
+        for line in partial.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                rec = json.loads(line)
+                done[(rec["repo"], rec["number"])] = rec["note"]
     for repo in repos:
         pool = fetch(repo, since, until, pool_days, get)
         todo = sorted(candidates(pool, since), key=lambda i: i["number"])
-        log(f"{repo}: {len(todo)} issues to replay, {len(pool)} in the pool")
+        log(f"{repo}: {len(todo)} issues to replay, {len(pool)} in the pool, "
+            f"{sum(1 for i in todo if (repo, i['number']) in done)} already done")
         for issue in todo:
-            seen = as_seen(issue, pool)
-            note = triage_note(lambda _, messages, max_tokens: model.complete(messages, max_tokens=max_tokens).text,
-                               seen)
+            note = done.get((repo, issue["number"]))
+            if note is None:
+                seen = as_seen(issue, pool)
+                note = with_backoff(lambda: triage_note(
+                    lambda _, messages, max_tokens: model.complete(messages, max_tokens=max_tokens).text, seen),
+                    sleep=sleep, log=log)
+                with partial.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({"repo": repo, "number": issue["number"], "note": note}) + "\n")
+                if pause:
+                    sleep(pause)
             rows.append(field.score({"repo": repo, "number": issue["number"], "title": issue["title"],
                                      "url": issue["html_url"], "note": note, "drafted_at": issue["created_at"]}, get))
-            if pause:
-                time.sleep(pause)
     summary = summarise(rows)
-    out.mkdir(parents=True, exist_ok=True)
     stamp = (now or (lambda: datetime.now(since.tzinfo)))()
     (out / f"{name}.json").write_text(json.dumps(
         {"repos": repos, "since": since.isoformat(), "until": until.isoformat(), "pool_days": pool_days,
@@ -115,7 +132,21 @@ def run(repos: list[str], since: datetime, until: datetime, model, out: Path, do
          "issues": [{**asdict(r), "truly_duplicate": r.truly_duplicate} for r in rows]},
         indent=2, default=str) + "\n", encoding="utf-8")
     doc.write_text(render(rows, summary, repos, since, until, pool_days, stamp), encoding="utf-8", newline="\n")
+    partial.unlink(missing_ok=True)
     return summary
+
+
+def with_backoff(call, *, sleep=time.sleep, log=print, waits=(20, 40, 80, 160, 300, 300)):
+    """A free-tier model answers 429 when called too fast. Wait and try again; after the
+    last wait, let the error stop the run (the notes so far are kept)."""
+    for wait in (*waits, None):
+        try:
+            return call()
+        except ModelError as e:
+            if wait is None or "429" not in str(e):
+                raise
+            log(f"rate limited; waiting {wait}s")
+            sleep(wait)
 
 
 def _rate(k: int, n: int) -> dict:
