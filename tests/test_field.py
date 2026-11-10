@@ -13,10 +13,13 @@ def github(issue=None, comments=(), timeline=()):
     return answers.__getitem__
 
 
-def test_a_named_duplicate_is_read_from_the_note_but_not_an_unchecked_one():
+def test_a_named_duplicate_is_read_as_a_maintainer_reads_it():
     assert field.read_note("Login fails on Safari. Possible duplicate: #3.", 7)[0] == [3]
-    flagged = field.UNCHECKED_REFERENCE.format("#99") + "\n\nPossible duplicate: #99."
-    assert field.read_note(flagged, 7)[0] == []
+    # A reviewer flag at the top does not hide the claim the maintainer reads below it.
+    flagged = field.UNCHECKED_REFERENCE.format("#99") + "\n\nPossible duplicate: #3. See #99."
+    assert field.read_note(flagged, 7)[0] == [3]
+    assert field.read_note("Duplicate: #3Related: #3", 7)[0] == [3]
+    assert field.read_note("Duplicate: Related: #3 (same area)", 7)[0] == []
     assert field.read_note("No duplicate found.", 7)[0] == []
 
 

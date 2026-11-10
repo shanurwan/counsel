@@ -382,18 +382,64 @@ def similar_issues(title: str, body: str | None, others) -> list[dict]:
     return [{"number": n, "title": t} for overlap, n, t in scored[:5] if overlap >= 2]
 
 
-# How a note names a duplicate: a clause that says "duplicate", but not "no duplicate" or
-# "related". field.read_note scores notes with the same reading.
-CLAUSE = re.compile(r"[.;]\s+|\n")
-DUPLICATE = re.compile(r"\bduplicate", re.I)
+# How a note names a duplicate, read the way a person reads it. Within a clause, each issue
+# number belongs to the nearest "duplicate" or "related" before it, or, with none before it,
+# to the first one after it. field.read_note scores notes with the same reading.
+CLAUSE = re.compile(r"([.;]\s+|\n)")
+MARKER = re.compile(r"\b(duplicate|related)", re.I)
 NO_DUPLICATE = re.compile(r"\bno (possible )?duplicate|\bnot a duplicate", re.I)
-RELATED = re.compile(r"\brelated\b", re.I)
+
+
+def _refs(clause: str, number: int) -> list[int]:
+    return list(dict.fromkeys(int(n) for n in REFERENCE.findall(clause) if int(n) != number))
+
+
+def _claims(clause: str, number: int) -> list[int]:
+    if NO_DUPLICATE.search(clause):
+        return []
+    marks = [(m.start(), m.group(1).lower()) for m in MARKER.finditer(clause)]
+    claims = []
+    for ref in REFERENCE.finditer(clause):
+        before = [kind for at, kind in marks if at < ref.start()]
+        after = [kind for at, kind in marks if at > ref.start()]
+        kind = before[-1] if before else (after[0] if after else None)
+        n = int(ref.group(1))
+        if kind == "duplicate" and n != number and n not in claims:
+            claims.append(n)
+    return claims
 
 
 def duplicate_references(note: str, number: int) -> list[int]:
-    clauses = [c for c in CLAUSE.split(note) if DUPLICATE.search(c) and not NO_DUPLICATE.search(c)
-               and not RELATED.search(c)]
-    return sorted({int(n) for c in clauses for n in REFERENCE.findall(c)} - {number})
+    return sorted({n for clause in CLAUSE.split(note)[::2] for n in _claims(clause, number)})
+
+
+def settle_duplicates(note: str, number: int, confirmed: set[int]) -> str:
+    """Rewrite every clause that names a duplicate the check did not confirm, so the note
+    never reads as claiming one. Confirmed numbers stay 'Duplicate: #n'; every other number
+    in the clause becomes 'Related: #n'. A clause that mixes the two words, like
+    'Duplicate: Related: #n', is rewritten too. A clause whose duplicates were all confirmed
+    is left as the model wrote it."""
+    parts = CLAUSE.split(note)
+    for i in range(0, len(parts), 2):
+        clause = parts[i]
+        if NO_DUPLICATE.search(clause) or not re.search(r"\bduplicate", clause, re.I):
+            continue
+        claims = _claims(clause, number)
+        mixed = re.search(r"\brelated\b", clause, re.I)
+        if claims and not mixed and all(n in confirmed for n in claims):
+            continue
+        refs = _refs(clause, number)
+        if not refs:
+            continue
+        kept = [n for n in claims if n in confirmed]
+        rest = [n for n in refs if n not in kept]
+        rebuilt = []
+        if kept:
+            rebuilt.append("Duplicate: " + ", ".join(f"#{n}" for n in kept))
+        if rest:
+            rebuilt.append("Related: " + ", ".join(f"#{n}" for n in rest))
+        parts[i] = "; ".join(rebuilt)
+    return "".join(parts)
 
 
 VERIFY_SYSTEM = (
@@ -417,23 +463,25 @@ def triage_note(complete, issue: dict) -> str:
     A note that names a duplicate is checked by a second, narrower question about the two
     issues' text, because the replay on Supabase's issues showed the note's model calling
     issues that only share an area duplicates. If that answer is not DUPLICATE, code turns
-    the claim into 'Related: #n'. The model never decides that a duplicate stands."""
+    the claim into 'Related: #n'. A number that was not among the candidates cannot be
+    checked, so it becomes 'Related: #n' too. The model never decides that a duplicate stands."""
     note = complete("triage", [{"role": "system", "content": TRIAGE_SYSTEM},
                                {"role": "user", "content": json.dumps(triage_input(issue), sort_keys=True)}], 300)
     note = check_references(note, issue)
     by_number = {c["number"]: c for c in issue.get("candidates", [])}
+    confirmed = set()
     for n in duplicate_references(note, issue["number"]):
         older = by_number.get(n)
         if older is None:
-            continue  # not a candidate: check_references has already flagged it
+            continue  # not a candidate: check_references has flagged it, and it stays unconfirmed
         verdict = complete("verify duplicate", [{"role": "system", "content": VERIFY_SYSTEM}, {
             "role": "user", "content": json.dumps({
                 "newer": {"title": issue["title"], "body": (issue.get("body") or "")[:4000]},
                 "older": {"number": n, "title": older["title"], "body": older.get("body") or ""}},
                 sort_keys=True)}], 10)
-        if "DUPLICATE" not in verdict.upper():
-            note = re.sub(rf"(?i)\b(possible\s+)?duplicates?(\s+of)?\s*:?\s*#{n}\b", f"Related: #{n}", note)
-    return note
+        if "DUPLICATE" in verdict.upper():
+            confirmed.add(n)
+    return settle_duplicates(note, issue["number"], confirmed)
 
 
 def check_references(note: str, issue: dict) -> str:

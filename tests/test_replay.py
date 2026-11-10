@@ -82,13 +82,54 @@ def test_a_run_writes_the_report_with_bounds_and_every_issue(tmp_path):
     assert "acme/widgets#9" in page and "lower bound" in page and "avoids hindsight" in page
 
 
-def test_an_invented_issue_number_is_flagged_and_its_duplicate_claim_not_counted():
+def test_an_invented_issue_number_is_flagged_and_its_duplicate_claim_becomes_related():
     from counsel import field
-    from counsel.behaviors import check_references
+    from counsel.behaviors import triage_note
 
     seen = replay.as_seen(POOL[0], POOL)
-    note = check_references("Possible duplicate: #8. Also see #4242.", seen)
-    assert "4242" in note and field.read_note(note, 9)[0] == []
+    asked = []
+
+    def complete(name, messages, max_tokens):
+        asked.append(name)
+        return "Fails after upgrade. Duplicate: #4242 (same cause)." if name == "triage" else "DUPLICATE"
+
+    note = triage_note(complete, seen)
+    # It cannot be checked, so the note never reads as claiming it, and nobody is asked.
+    assert "not in this repository's open list: #4242" in note
+    assert "Related: #4242" in note and "Duplicate" not in note.split("\n\n", 1)[1]
+    assert field.read_note(note, 9)[0] == [] and asked == ["triage"]
+
+
+def test_a_flagged_note_still_counts_the_duplicate_it_confirmed():
+    from counsel import field
+    from counsel.behaviors import triage_note
+
+    seen = replay.as_seen(POOL[0], POOL)
+    note = triage_note(lambda name, m, t: "Fails. Possible duplicate: #8. Also see #4242."
+                       if name == "triage" else "DUPLICATE", seen)
+    assert "#4242" in note and field.read_note(note, 9)[0] == [8]
+
+
+def test_a_rejected_duplicate_leaves_no_duplicate_wording():
+    from counsel import field
+    from counsel.behaviors import triage_note
+
+    seen = replay.as_seen(POOL[0], POOL)
+    note = triage_note(lambda name, m, t: "Fails. Duplicate: possible duplicate of #8 (same area)."
+                       if name == "triage" else "RELATED", seen)
+    assert "Related: #8" in note and "uplicate" not in note
+    assert field.read_note(note, 9)[0] == []
+
+
+def test_a_clause_keeps_only_the_duplicates_the_check_confirmed():
+    from counsel.behaviors import settle_duplicates
+
+    note = settle_duplicates("Fails. Duplicate: #8, #6 (same cause). Area: auth.", 9, {8})
+    assert note == "Fails. Duplicate: #8; Related: #6. Area: auth."
+    # A clause the check fully confirmed is left as written.
+    kept = "Fails. Duplicate: #8 (same cause)."
+    assert settle_duplicates(kept, 9, {8}) == kept
+    assert settle_duplicates("Duplicate: Related: #8 (same area)", 9, set()) == "Related: #8"
 
 
 def test_a_duplicate_the_check_calls_related_becomes_related_and_is_not_counted():
@@ -126,6 +167,9 @@ def test_related_and_no_duplicate_are_not_claims():
     assert duplicate_references("Area: auth. Related: #8. No duplicate found.", 9) == []
     assert duplicate_references("Possible duplicate: #8; related: #6.", 9) == [8]
     assert duplicate_references("This is a duplicate of #8.", 9) == [8]
+    assert duplicate_references("Duplicate of #8, related to #6.", 9) == [8]
+    assert duplicate_references("#8 looks like a duplicate.", 9) == [8]
+    assert duplicate_references("Not a duplicate of #8.", 9) == []
 
 
 def test_a_rate_limited_run_waits_resumes_and_never_pays_twice(tmp_path):
