@@ -31,6 +31,11 @@ POOL = [
 ]
 
 
+def described():
+    """Issue 9 as the agent sees it, with a body the duplicate check can compare."""
+    return {**replay.as_seen(POOL[0], POOL), "body": "Refresh returns 401 after upgrading to 2.1 on Chrome."}
+
+
 def get_factory(pages, extra=None):
     answers = {f"{BASE}/issues?state=all&sort=created&direction=desc&per_page=100&page={k + 1}": p
                for k, p in enumerate(pages)}
@@ -72,7 +77,8 @@ def test_a_run_writes_the_report_with_bounds_and_every_issue(tmp_path):
                                           "Possible duplicate: #8."})()
 
     since, until = datetime(2026, 10, 15, tzinfo=UTC), datetime(2026, 11, 1, tzinfo=UTC)
-    get = get_factory([POOL], {f"{BASE}/issues/9": {"created_at": "2026-10-20T00:00:00Z", "state": "closed",
+    pool = [{**POOL[0], "body": "Refresh returns 401 after upgrading to 2.1 on Chrome."}, *POOL[1:]]
+    get = get_factory([pool], {f"{BASE}/issues/9": {"created_at": "2026-10-20T00:00:00Z", "state": "closed",
                                                      "state_reason": "duplicate", "labels": []}})
     summary = replay.run([REPO], since, until, Model(), tmp_path / "field", tmp_path / "doc.md", get=get,
                          log=lambda m: None, now=lambda: datetime(2026, 11, 12, tzinfo=UTC))
@@ -104,7 +110,7 @@ def test_a_flagged_note_still_counts_the_duplicate_it_confirmed():
     from counsel import field
     from counsel.behaviors import triage_note
 
-    seen = replay.as_seen(POOL[0], POOL)
+    seen = described()
     note = triage_note(lambda name, m, t: "Fails. Possible duplicate: #8. Also see #4242."
                        if name == "triage" else "DUPLICATE", seen)
     assert "#4242" in note and field.read_note(note, 9)[0] == [8]
@@ -130,13 +136,14 @@ def test_a_clause_keeps_only_the_duplicates_the_check_confirmed():
     kept = "Fails. Duplicate: #8 (same cause)."
     assert settle_duplicates(kept, 9, {8}) == kept
     assert settle_duplicates("Duplicate: Related: #8 (same area)", 9, set()) == "Related: #8"
+    assert settle_duplicates("Fails. Possible duplicate: #8.", 9, set()) == "Fails. Related: #8."
 
 
 def test_a_duplicate_the_check_calls_related_becomes_related_and_is_not_counted():
     from counsel import field
     from counsel.behaviors import triage_note
 
-    seen = replay.as_seen(POOL[0], POOL)
+    seen = described()
     asked = []
 
     def complete(name, messages, max_tokens):
@@ -156,9 +163,28 @@ def test_a_duplicate_the_check_confirms_stays():
     from counsel import field
     from counsel.behaviors import triage_note
 
-    seen = replay.as_seen(POOL[0], POOL)
+    seen = described()
     note = triage_note(lambda name, m, t: "Fails. Duplicate: #8." if name == "triage" else "DUPLICATE", seen)
     assert field.read_note(note, 9)[0] == [8]
+
+
+def test_an_issue_with_no_words_of_its_own_gets_no_duplicate():
+    from counsel import field
+    from counsel.behaviors import has_own_words, triage_note
+
+    shot = '<img width="1252" height="569" alt="Image" src="https://github.com/user-attachments/assets/x" />'
+    seen = {**replay.as_seen(POOL[0], POOL), "body": shot}
+    asked = []
+
+    def complete(name, messages, max_tokens):
+        asked.append(name)
+        return "Error Login In. Duplicate: #8." if name == "triage" else "DUPLICATE"
+
+    note = triage_note(complete, seen)
+    # The check reads text; a screenshot gives it nothing to compare, so it is not asked.
+    assert asked == ["triage"] and "Related: #8" in note and field.read_note(note, 9)[0] == []
+    assert not has_own_words("![Image](https://x/y.png)\n<!-- template -->\nhttps://x/z")
+    assert has_own_words("Login fails on Safari ![shot](https://x/y.png)")
 
 
 def test_related_and_no_duplicate_are_not_claims():
